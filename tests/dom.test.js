@@ -39,7 +39,7 @@ describe('boardRenderer module', () => {
     const columnTitles = Array.from(container.querySelectorAll('.column-title')).map(el => el.textContent);
     expect(columnTitles).toEqual(['Backlog', 'Rollover', "In Month's Budget", 'Unfunded']);
 
-    const cashValues = Array.from(container.querySelectorAll('.cash-value')).map(el => el.textContent);
+    const cashValues = Array.from(container.querySelectorAll('.metric-cash')).map(el => el.textContent);
     expect(cashValues).toEqual(['$0', '$500', '$4,500', '$0']);
   });
 });

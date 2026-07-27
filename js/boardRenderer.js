@@ -1,10 +1,16 @@
+import { calculateColumnMetrics } from './mathEngine.js';
+
 export function formatCurrency(amount) {
   const num = Number(amount) || 0;
-  return new Intl.NumberFormat('en-US', {
+  const isNegative = num < 0;
+  const absVal = Math.abs(num);
+  const formatted = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: (num % 1 === 0) ? 0 : 2
-  }).format(num);
+    maximumFractionDigits: (absVal % 1 === 0) ? 0 : 2
+  }).format(absVal);
+
+  return isNegative ? `-${formatted}` : formatted;
 }
 
 export function renderBoard(state, containerElement, cards = []) {
@@ -27,7 +33,7 @@ export function renderBoard(state, containerElement, cards = []) {
           <h1 class="board-title">${escapeHtml(boardTitle)}</h1>
         </div>
         <div class="header-badges">
-          <span class="status-pill"><span class="status-dot"></span> LocalStorage Synced</span>
+          <span class="status-pill"><span class="status-dot"></span> Live Math & Drag Engine</span>
         </div>
       </div>
     </header>
@@ -75,7 +81,11 @@ export function renderBoard(state, containerElement, cards = []) {
 }
 
 function renderColumn(column, columnCards = []) {
-  const formattedCash = formatCurrency(column.cash_in_play || 0);
+  const metrics = calculateColumnMetrics(column, columnCards);
+  const formattedCash = formatCurrency(metrics.cashInPlay);
+  const formattedExpenses = formatCurrency(metrics.totalExpenses);
+  const formattedBalance = formatCurrency(metrics.netBalance);
+  const balanceClass = metrics.isNegative ? 'negative-balance' : 'positive-balance';
 
   return `
     <section class="board-column" data-column-id="${escapeHtml(column.id)}">
@@ -83,9 +93,19 @@ function renderColumn(column, columnCards = []) {
         <div class="column-title-group">
           <h2 class="column-title">${escapeHtml(column.title)}</h2>
         </div>
-        <div class="cash-badge" title="Cash in play">
-          <span class="cash-label">Cash</span>
-          <span class="cash-value">${formattedCash}</span>
+        <div class="column-metrics-grid">
+          <div class="metric-item" title="Configured Cash in Play">
+            <span class="metric-label">Cash</span>
+            <span class="metric-value metric-cash">${formattedCash}</span>
+          </div>
+          <div class="metric-item" title="Sum of Column Expenses">
+            <span class="metric-label">Expenses</span>
+            <span class="metric-value metric-expenses">${formattedExpenses}</span>
+          </div>
+          <div class="metric-item" title="Net Balance (Cash - Expenses)">
+            <span class="metric-label">Net Balance</span>
+            <span class="metric-value metric-balance ${balanceClass}">${formattedBalance}</span>
+          </div>
         </div>
       </div>
 
@@ -111,7 +131,10 @@ function renderCardItem(card) {
   const formattedAmount = formatCurrency(card.amount || 0);
 
   return `
-    <div class="card-item" data-card-id="${escapeHtml(card.id)}">
+    <div class="card-item" draggable="true" data-card-id="${escapeHtml(card.id)}">
+      <div class="card-drag-handle" title="Drag card to move">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
+      </div>
       <div class="card-body">
         <div class="card-header-row">
           <h3 class="card-title">${escapeHtml(card.title)}</h3>

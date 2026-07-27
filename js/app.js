@@ -4,6 +4,7 @@ import { StateStore } from './stateStore.js';
 
 let appStateConfig = null;
 let stateStore = null;
+let draggedCardId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('app');
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     appStateConfig = await loadConfig('config.yaml');
     renderApp(container);
     setupEventListeners(container);
+    setupDragAndDrop(container);
   } catch (error) {
     console.error('Initialization error:', error);
   }
@@ -95,6 +97,75 @@ function setupEventListeners(container) {
       renderApp(container);
     }
   });
+}
+
+function setupDragAndDrop(container) {
+  container.addEventListener('dragstart', (event) => {
+    const cardEl = event.target.closest('.card-item');
+    if (!cardEl) return;
+
+    draggedCardId = cardEl.dataset.cardId;
+    if (event.dataTransfer) {
+      event.dataTransfer.setData('text/plain', draggedCardId);
+      event.dataTransfer.effectAllowed = 'move';
+    }
+    cardEl.classList.add('is-dragging');
+  });
+
+  container.addEventListener('dragover', (event) => {
+    const cardsContainer = event.target.closest('.column-cards-container') || event.target.closest('.board-column');
+    if (!cardsContainer) return;
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    const dropZone = cardsContainer.classList.contains('column-cards-container')
+      ? cardsContainer
+      : cardsContainer.querySelector('.column-cards-container');
+
+    if (dropZone && !dropZone.classList.contains('drag-over')) {
+      removeAllDragOverClasses();
+      dropZone.classList.add('drag-over');
+    }
+  });
+
+  container.addEventListener('dragleave', (event) => {
+    const dropZone = event.target.closest('.column-cards-container');
+    if (dropZone && !dropZone.contains(event.relatedTarget)) {
+      dropZone.classList.remove('drag-over');
+    }
+  });
+
+  container.addEventListener('drop', (event) => {
+    const colElement = event.target.closest('.board-column');
+    if (!colElement) return;
+
+    event.preventDefault();
+    removeAllDragOverClasses();
+
+    const targetColumnId = colElement.dataset.columnId;
+    const cardId = draggedCardId || (event.dataTransfer ? event.dataTransfer.getData('text/plain') : null);
+
+    if (cardId && targetColumnId) {
+      stateStore.moveCard(cardId, targetColumnId);
+      draggedCardId = null;
+      renderApp(container);
+    }
+  });
+
+  container.addEventListener('dragend', (event) => {
+    draggedCardId = null;
+    removeAllDragOverClasses();
+    const draggingEls = container.querySelectorAll('.card-item.is-dragging');
+    draggingEls.forEach(el => el.classList.remove('is-dragging'));
+  });
+}
+
+function removeAllDragOverClasses() {
+  const activeDropZones = document.querySelectorAll('.column-cards-container.drag-over');
+  activeDropZones.forEach(zone => zone.classList.remove('drag-over'));
 }
 
 function openModal(cardData = {}) {

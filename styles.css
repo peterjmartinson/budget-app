@@ -20,7 +20,8 @@
   --emerald-gradient: linear-gradient(135deg, hsl(155, 75%, 45%), hsl(175, 80%, 40%));
   --amber-accent: hsl(38, 92%, 50%);
   --purple-accent: hsl(270, 75%, 60%);
-  --rose-accent: hsl(350, 75%, 55%);
+  --rose-accent: hsl(350, 90%, 62%);
+  --rose-bg: hsla(350, 85%, 55%, 0.15);
 
   /* Text & Typography */
   --text-main: hsl(210, 30%, 96%);
@@ -184,7 +185,7 @@ body {
 }
 
 /* ==========================================================================
-   Column Card Structure
+   Column Card Structure & Math Metrics Engine Header
    ========================================================================== */
 
 .board-column {
@@ -207,60 +208,105 @@ body {
 
 .column-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.75rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--border-glass);
 }
 
+.column-title-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .column-title {
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-main);
   letter-spacing: -0.01em;
 }
 
-.cash-badge {
-  background: var(--bg-glass);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-md);
-  padding: 0.35rem 0.75rem;
-  display: flex;
-  align-items: center;
+.column-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.4rem;
 }
 
-.cash-label {
-  font-size: 0.72rem;
+.metric-item {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 0.65rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
   font-weight: 600;
 }
 
-.cash-value {
-  font-size: 0.95rem;
+.metric-value {
+  font-size: 0.82rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.metric-cash {
+  color: var(--text-main);
+}
+
+.metric-expenses {
+  color: var(--amber-accent);
+}
+
+.positive-balance {
   color: var(--emerald-accent);
 }
+
+.negative-balance {
+  color: var(--rose-accent);
+  background: var(--rose-bg);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-weight: 800;
+}
+
+/* ==========================================================================
+   Card Container & Drag-and-Drop Drop Zones
+   ========================================================================== */
 
 .column-cards-container {
   min-height: 180px;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  padding: 0.25rem;
+  padding: 0.35rem;
+  border-radius: var(--radius-md);
+  transition: var(--transition-smooth);
+}
+
+.column-cards-container.drag-over {
+  background: hsla(220, 90%, 56%, 0.12);
+  border: 2px dashed var(--accent-primary);
+  box-shadow: inset 0 0 15px var(--accent-glow);
 }
 
 .empty-column-placeholder {
-  min-height: 160px;
+  min-height: 150px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   border: 2px dashed var(--border-glass);
   border-radius: var(--radius-md);
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem;
   text-align: center;
   color: var(--text-dim);
 }
@@ -275,19 +321,25 @@ body {
 }
 
 /* ==========================================================================
-   Card Component Styles
+   Card Component & Dragging States
    ========================================================================== */
 
 .card-item {
   background: hsla(222, 18%, 18%, 0.75);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
-  padding: 1rem;
+  padding: 0.9rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  transition: var(--transition-smooth);
+  cursor: grab;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.card-item:active {
+  cursor: grabbing;
 }
 
 .card-item:hover {
@@ -297,11 +349,32 @@ body {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
+.card-item.is-dragging {
+  opacity: 0.4;
+  border: 2px dashed var(--accent-primary);
+  transform: scale(0.97);
+}
+
+.card-drag-handle {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  color: var(--text-dim);
+  opacity: 0.4;
+  transition: var(--transition-smooth);
+}
+
+.card-item:hover .card-drag-handle {
+  opacity: 0.8;
+  color: var(--accent-primary);
+}
+
 .card-header-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
+  padding-right: 1.25rem;
 }
 
 .card-title {

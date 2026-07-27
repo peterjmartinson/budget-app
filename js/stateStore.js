@@ -99,4 +99,13 @@ export class StateStore {
     this.saveState();
     return true;
   }
+
+  moveCard(id, targetColumnId) {
+    const card = this.cards.find(c => c.id === id);
+    if (!card) return null;
+
+    card.columnId = String(targetColumnId);
+    this.saveState();
+    return card;
+  }
 }

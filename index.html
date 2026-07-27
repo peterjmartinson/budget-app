@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monthly Budget Board - Issue 1 Walking Skeleton</title>
+  <meta name="description" content="Dynamic single-page monthly budget management board parsing YAML configuration.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Importmap for bare module resolution in browser -->
+  <script type="importmap">
+    {
+      "imports": {
+        "js-yaml": "https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/+esm"
+      }
+    }
+  </script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Main App Script -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

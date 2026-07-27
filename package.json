@@ -1,0 +1,14 @@
+{
+  "name": "budget-app",
+  "version": "1.0.0",
+  "description": "Monthly Budget Board - Issue 1 Walking Skeleton",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0",
+    "jsdom": "^24.0.0",
+    "vitest": "^1.3.0"
+  }
+}

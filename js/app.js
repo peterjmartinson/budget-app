@@ -1,6 +1,8 @@
 import { loadConfig } from './configLoader.js';
 import { renderBoard } from './boardRenderer.js';
 import { StateStore } from './stateStore.js';
+import { exportToCSV, parseCSV } from './csvEngine.js';
+import { fetchFromSheets, syncToSheets } from './sheetsSync.js';
 
 let appStateConfig = null;
 let stateStore = null;
@@ -24,11 +26,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function renderApp(container) {
   if (!container || !appStateConfig || !stateStore) return;
-  renderBoard(appStateConfig, container, stateStore.getCards());
+  renderBoard(appStateConfig, container, stateStore.getCards(), stateStore);
 }
 
 function setupEventListeners(container) {
-  container.addEventListener('click', (event) => {
+  container.addEventListener('click', async (event) => {
     // Add Card Trigger
     const addBtn = event.target.closest('.btn-add-card');
     if (addBtn) {
@@ -64,20 +66,72 @@ function setupEventListeners(container) {
       return;
     }
 
-    // Close Modal Trigger
+    // Export CSV Trigger
+    const exportBtn = event.target.closest('#btn-export-csv');
+    if (exportBtn) {
+      handleExportCSV();
+      return;
+    }
+
+    // Import CSV Trigger
+    const importBtn = event.target.closest('#btn-import-csv');
+    if (importBtn) {
+      const fileInput = document.getElementById('csv-file-input');
+      if (fileInput) fileInput.click();
+      return;
+    }
+
+    // Fetch Sheets Trigger
+    const fetchBtn = event.target.closest('#btn-fetch-sheets');
+    if (fetchBtn) {
+      await handleFetchSheets(container);
+      return;
+    }
+
+    // Sync Sheets Trigger
+    const syncBtn = event.target.closest('#btn-sync-sheets');
+    if (syncBtn) {
+      await handleSyncSheets(container);
+      return;
+    }
+
+    // Settings Modal Open Trigger
+    const settingsBtn = event.target.closest('#btn-open-settings');
+    if (settingsBtn) {
+      openSettingsModal();
+      return;
+    }
+
+    // Settings Modal Close Trigger
+    const closeSettingsBtn = event.target.closest('#settings-close-btn') || event.target.closest('#settings-cancel-btn');
+    if (closeSettingsBtn) {
+      closeSettingsModal();
+      return;
+    }
+
+    // Card Modal Close Trigger
     const closeBtn = event.target.closest('#modal-close-btn') || event.target.closest('#modal-cancel-btn');
     if (closeBtn) {
       closeModal();
       return;
     }
 
-    // Backdrop Click
+    // Backdrop Click for Modals
     if (event.target.classList.contains('modal-overlay')) {
       closeModal();
+      closeSettingsModal();
       return;
     }
   });
 
+  // Change Event for File Input
+  container.addEventListener('change', (event) => {
+    if (event.target.id === 'csv-file-input') {
+      handleImportCSVFile(event.target.files[0], container);
+    }
+  });
+
+  // Submit Handler for Forms
   container.addEventListener('submit', (event) => {
     if (event.target.id === 'card-form') {
       event.preventDefault();
@@ -96,7 +150,113 @@ function setupEventListeners(container) {
       closeModal();
       renderApp(container);
     }
+
+    if (event.target.id === 'settings-form') {
+      event.preventDefault();
+      const urlInput = document.getElementById('sheets-url-input')?.value;
+      stateStore.saveSheetsUrl(urlInput);
+      closeSettingsModal();
+      showToast('Settings saved successfully.', 'info');
+      renderApp(container);
+    }
   });
+}
+
+function handleExportCSV() {
+  const cards = stateStore.getCards();
+  const csvContent = exportToCSV(cards);
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `budget_board_export_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showToast('CSV exported successfully!', 'success');
+}
+
+function handleImportCSVFile(file, container) {
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const csvText = e.target.result;
+      const parsedCards = parseCSV(csvText);
+
+      if (parsedCards.length === 0) {
+        showToast('No valid card rows found in CSV file.', 'warning');
+        return;
+      }
+
+      stateStore.replaceCards(parsedCards);
+      renderApp(container);
+      showToast(`Imported ${parsedCards.length} cards from CSV.`, 'success');
+    } catch (err) {
+      console.error('CSV parse error:', err);
+      showToast('Failed to parse CSV file: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function handleFetchSheets(container) {
+  const url = stateStore.getSheetsUrl();
+  if (!url) {
+    showToast('Please set your Google Apps Script URL in Settings.', 'warning');
+    openSettingsModal();
+    return;
+  }
+
+  showToast('Fetching cards from Google Sheet...', 'info');
+  const result = await fetchFromSheets(url);
+
+  if (result.success) {
+    stateStore.replaceCards(result.cards);
+    renderApp(container);
+    showToast(`Fetched ${result.cards.length} cards from Google Sheet.`, 'success');
+  } else {
+    showToast(`Fetch failed: ${result.error}. Operating offline.`, 'error');
+  }
+}
+
+async function handleSyncSheets(container) {
+  const url = stateStore.getSheetsUrl();
+  if (!url) {
+    showToast('Please set your Google Apps Script URL in Settings.', 'warning');
+    openSettingsModal();
+    return;
+  }
+
+  showToast('Syncing cards to Google Sheet...', 'info');
+  const result = await syncToSheets(url, stateStore.getCards());
+
+  if (result.success) {
+    stateStore.markSynced();
+    renderApp(container);
+    showToast('Successfully synced state to Google Sheet!', 'success');
+  } else {
+    showToast(`Sync failed: ${result.error}. Local state preserved.`, 'error');
+  }
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('sync-toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
 }
 
 function setupDragAndDrop(container) {
@@ -202,6 +362,28 @@ function openModal(cardData = {}) {
 
 function closeModal() {
   const modal = document.getElementById('card-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function openSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  const urlInput = document.getElementById('sheets-url-input');
+  if (!modal) return;
+
+  if (urlInput && stateStore) {
+    urlInput.value = stateStore.getSheetsUrl();
+  }
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  setTimeout(() => urlInput?.focus(), 50);
+}
+
+function closeSettingsModal() {
+  const modal = document.getElementById('settings-modal');
   if (modal) {
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');

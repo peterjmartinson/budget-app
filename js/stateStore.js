@@ -1,4 +1,5 @@
 export const STORAGE_KEY = 'budget_board_state';
+export const SHEETS_URL_KEY = 'budget_sheets_url';
 
 export function parseAmount(input) {
   if (typeof input === 'number') {
@@ -20,9 +21,11 @@ export function generateUUID() {
 }
 
 export class StateStore {
-  constructor(storageKey = STORAGE_KEY) {
+  constructor(storageKey = STORAGE_KEY, urlKey = SHEETS_URL_KEY) {
     this.storageKey = storageKey;
+    this.urlKey = urlKey;
     this.cards = [];
+    this.hasUnsavedChanges = false;
     this.loadState();
   }
 
@@ -56,6 +59,45 @@ export class StateStore {
     }
   }
 
+  getSheetsUrl() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem(this.urlKey) || '';
+      }
+    } catch (err) {
+      console.warn('Failed to get Sheets URL from localStorage:', err);
+    }
+    return '';
+  }
+
+  saveSheetsUrl(url) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.urlKey, String(url || '').trim());
+      }
+    } catch (err) {
+      console.error('Failed to save Sheets URL to localStorage:', err);
+    }
+  }
+
+  markSynced() {
+    this.hasUnsavedChanges = false;
+  }
+
+  replaceCards(newCards = []) {
+    if (!Array.isArray(newCards)) return;
+    this.cards = newCards.map(c => ({
+      id: c.id || generateUUID(),
+      columnId: String(c.columnId || 'backlog'),
+      title: String(c.title || 'Untitled Expense').trim(),
+      description: String(c.description || '').trim(),
+      amount: parseAmount(c.amount),
+      createdAt: c.createdAt || new Date().toISOString()
+    }));
+    this.hasUnsavedChanges = false;
+    this.saveState();
+  }
+
   getCards() {
     return this.cards;
   }
@@ -74,6 +116,7 @@ export class StateStore {
       createdAt: new Date().toISOString()
     };
     this.cards.push(card);
+    this.hasUnsavedChanges = true;
     this.saveState();
     return card;
   }
@@ -87,6 +130,7 @@ export class StateStore {
     if (updates.amount !== undefined) card.amount = parseAmount(updates.amount);
     if (updates.columnId !== undefined) card.columnId = String(updates.columnId);
 
+    this.hasUnsavedChanges = true;
     this.saveState();
     return card;
   }
@@ -96,6 +140,7 @@ export class StateStore {
     if (index === -1) return false;
 
     this.cards.splice(index, 1);
+    this.hasUnsavedChanges = true;
     this.saveState();
     return true;
   }
@@ -105,6 +150,7 @@ export class StateStore {
     if (!card) return null;
 
     card.columnId = String(targetColumnId);
+    this.hasUnsavedChanges = true;
     this.saveState();
     return card;
   }

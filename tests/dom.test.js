@@ -42,4 +42,30 @@ describe('boardRenderer module', () => {
     const cashValues = Array.from(container.querySelectorAll('.metric-cash')).map(el => el.textContent);
     expect(cashValues).toEqual(['$0', '$500', '$4,500', '$0']);
   });
+
+  it('renders sync action buttons, status badge, and settings modal', () => {
+    const state = {
+      board: { title: 'Test Board' },
+      columns: [{ id: 'backlog', title: 'Backlog', cash_in_play: 0 }]
+    };
+
+    const mockStoreDirty = { hasUnsavedChanges: true, getSheetsUrl: () => 'https://script.google.com/test' };
+    renderBoard(state, container, [], mockStoreDirty);
+
+    expect(container.querySelector('#btn-fetch-sheets')).not.toBeNull();
+    expect(container.querySelector('#btn-sync-sheets')).not.toBeNull();
+    expect(container.querySelector('#btn-export-csv')).not.toBeNull();
+    expect(container.querySelector('#btn-import-csv')).not.toBeNull();
+    expect(container.querySelector('#btn-open-settings')).not.toBeNull();
+
+    const dirtyBadge = container.querySelector('.badge-dirty');
+    expect(dirtyBadge).not.toBeNull();
+    expect(dirtyBadge.textContent).toBe('Unsaved Changes');
+
+    const settingsModal = container.querySelector('#settings-modal');
+    expect(settingsModal).not.toBeNull();
+    const urlInput = container.querySelector('#sheets-url-input');
+    expect(urlInput.value).toBe('https://script.google.com/test');
+  });
 });
+

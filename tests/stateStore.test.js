@@ -116,5 +116,50 @@ describe('stateStore module', () => {
       expect(cards[0].amount).toBe(99.99);
       expect(cards[0].columnId).toBe('unfunded');
     });
+
+    it('tracks unsaved changes dirty flag on modifications', () => {
+      const store = new StateStore();
+      expect(store.hasUnsavedChanges).toBe(false);
+
+      const card = store.addCard({ title: 'New Item', amount: 50, columnId: 'backlog' });
+      expect(store.hasUnsavedChanges).toBe(true);
+
+      store.markSynced();
+      expect(store.hasUnsavedChanges).toBe(false);
+
+      store.updateCard(card.id, { amount: 60 });
+      expect(store.hasUnsavedChanges).toBe(true);
+
+      store.markSynced();
+      store.deleteCard(card.id);
+      expect(store.hasUnsavedChanges).toBe(true);
+    });
+
+    it('manages Sheets Web App URL in localStorage', () => {
+      const store = new StateStore();
+      expect(store.getSheetsUrl()).toBe('');
+
+      store.saveSheetsUrl('https://script.google.com/test');
+      expect(store.getSheetsUrl()).toBe('https://script.google.com/test');
+
+      const reloadedStore = new StateStore();
+      expect(reloadedStore.getSheetsUrl()).toBe('https://script.google.com/test');
+    });
+
+    it('replaceCards overwrites all cards and saves state', () => {
+      const store = new StateStore();
+      store.addCard({ title: 'Old Card', amount: 10, columnId: 'backlog' });
+
+      const newCards = [
+        { id: '1', title: 'Imported Card 1', amount: 100, columnId: 'committed' },
+        { id: '2', title: 'Imported Card 2', amount: 200, columnId: 'backlog' }
+      ];
+
+      store.replaceCards(newCards);
+      expect(store.getCards()).toHaveLength(2);
+      expect(store.getCards()[0].title).toBe('Imported Card 1');
+      expect(store.hasUnsavedChanges).toBe(false);
+    });
   });
 });
+

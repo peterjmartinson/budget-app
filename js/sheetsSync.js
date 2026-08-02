@@ -20,7 +20,10 @@ export async function fetchFromSheets(webAppUrl, fetchFn) {
   }
 
   try {
-    const response = await customFetch(webAppUrl);
+    const response = await customFetch(webAppUrl, {
+      method: 'GET',
+      redirect: 'follow'
+    });
     if (!response.ok) {
       return { success: false, error: `HTTP ${response.status}: ${response.statusText}`, cards: [] };
     }
@@ -65,7 +68,8 @@ export async function syncToSheets(webAppUrl, cards, fetchFn) {
       body: JSON.stringify(cards || []),
       headers: {
         'Content-Type': 'text/plain;charset=utf-8'
-      }
+      },
+      redirect: 'follow'
     });
 
     if (!response.ok) {

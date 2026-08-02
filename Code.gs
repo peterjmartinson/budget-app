@@ -10,9 +10,20 @@
  * 6. Copy the Web App URL into your Budget App Settings.
  */
 
+var SHEET_NAME = 'Active Budget';
+
+function getTargetSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(SHEET_NAME);
+  }
+  return sheet;
+}
+
 function doGet(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var sheet = getTargetSheet();
     var data = sheet.getDataRange().getValues();
     
     if (data.length <= 1) {
@@ -51,7 +62,7 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var sheet = getTargetSheet();
     var contents = e.postData ? e.postData.contents : '';
     var cards = JSON.parse(contents);
     
@@ -81,3 +92,4 @@ function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
+

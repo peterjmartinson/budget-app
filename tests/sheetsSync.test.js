@@ -22,7 +22,10 @@ describe('Sheets Sync Engine', () => {
       });
 
       const result = await fetchFromSheets(mockUrl, mockFetch);
-      expect(mockFetch).toHaveBeenCalledWith(mockUrl);
+      expect(mockFetch).toHaveBeenCalledWith(mockUrl, expect.objectContaining({
+        method: 'GET',
+        redirect: 'follow'
+      }));
       expect(result.success).toBe(true);
       expect(result.cards).toEqual(mockCards);
     });

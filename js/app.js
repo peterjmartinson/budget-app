@@ -2,7 +2,7 @@ import { loadConfig } from './configLoader.js';
 import { renderBoard } from './boardRenderer.js';
 import { StateStore } from './stateStore.js';
 import { exportToCSV, parseCSV } from './csvEngine.js';
-import { fetchFromSheets, syncToSheets } from './sheetsSync.js';
+import { fetchFromSheets, syncToSheets, fetchEnvelopesFromSheets, syncEnvelopesToSheets } from './sheetsSync.js';
 
 let appStateConfig = null;
 let stateStore = null;
@@ -31,6 +31,40 @@ function renderApp(container) {
 
 function setupEventListeners(container) {
   container.addEventListener('click', async (event) => {
+    // Clickable Cash Inline Editing Trigger
+    const cashSpan = event.target.closest('.clickable-cash');
+    if (cashSpan) {
+      const columnId = cashSpan.dataset.columnId;
+      const currentCash = stateStore.getEnvelopeCash(columnId);
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.01';
+      input.className = 'cash-inline-input';
+      input.value = currentCash;
+      input.dataset.columnId = columnId;
+
+      cashSpan.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const commitCashEdit = () => {
+        const newCash = input.value;
+        stateStore.setEnvelopeCash(columnId, newCash);
+        renderApp(container);
+      };
+
+      input.addEventListener('blur', commitCashEdit, { once: true });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          input.blur();
+        } else if (e.key === 'Escape') {
+          input.removeEventListener('blur', commitCashEdit);
+          renderApp(container);
+        }
+      });
+      return;
+    }
+
     // Add Card Trigger
     const addBtn = event.target.closest('.btn-add-card');
     if (addBtn) {
@@ -212,15 +246,28 @@ async function handleFetchSheets(container) {
     return;
   }
 
-  showToast('Fetching cards from Google Sheet...', 'info');
-  const result = await fetchFromSheets(url);
+  const sheetName = appStateConfig?.google_sheets?.sheet_name || appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
+  const envelopesSheetName = appStateConfig?.google_sheets?.envelopes_sheet_name || 'Envelopes';
 
-  if (result.success) {
-    stateStore.replaceCards(result.cards);
+  showToast('Fetching cards and envelopes from Google Sheet...', 'info');
+  const [cardsResult, envResult] = await Promise.all([
+    fetchFromSheets(url, null, sheetName),
+    fetchEnvelopesFromSheets(url, null, envelopesSheetName)
+  ]);
+
+  if (cardsResult.success) {
+    stateStore.replaceCards(cardsResult.cards);
+  }
+
+  if (envResult.success) {
+    stateStore.replaceEnvelopes(envResult.envelopes);
+  }
+
+  if (cardsResult.success || envResult.success) {
     renderApp(container);
-    showToast(`Fetched ${result.cards.length} cards from Google Sheet.`, 'success');
+    showToast('Fetched latest data from Google Sheet.', 'success');
   } else {
-    showToast(`Fetch failed: ${result.error}. Operating offline.`, 'error');
+    showToast(`Fetch failed: ${cardsResult.error || envResult.error}. Operating offline.`, 'error');
   }
 }
 
@@ -232,15 +279,28 @@ async function handleSyncSheets(container) {
     return;
   }
 
-  showToast('Syncing cards to Google Sheet...', 'info');
-  const result = await syncToSheets(url, stateStore.getCards());
+  const sheetName = appStateConfig?.google_sheets?.sheet_name || appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
+  const envelopesSheetName = appStateConfig?.google_sheets?.envelopes_sheet_name || 'Envelopes';
 
-  if (result.success) {
+  const columns = Array.isArray(appStateConfig?.columns) ? appStateConfig.columns : [];
+  const currentEnvelopes = stateStore.getEnvelopes();
+  const envelopesList = columns.map(col => ({
+    columnId: col.id,
+    cash: (currentEnvelopes && currentEnvelopes[col.id] !== undefined) ? currentEnvelopes[col.id] : 0
+  }));
+
+  showToast('Syncing cards and envelopes to Google Sheet...', 'info');
+  const [cardsResult, envResult] = await Promise.all([
+    syncToSheets(url, stateStore.getCards(), null, sheetName),
+    syncEnvelopesToSheets(url, envelopesList, null, envelopesSheetName)
+  ]);
+
+  if (cardsResult.success && envResult.success) {
     stateStore.markSynced();
     renderApp(container);
-    showToast('Successfully synced state to Google Sheet!', 'success');
+    showToast('Successfully synced cards and envelopes to Google Sheet!', 'success');
   } else {
-    showToast(`Sync failed: ${result.error}. Local state preserved.`, 'error');
+    showToast(`Sync failed: ${cardsResult.error || envResult.error}. Local state preserved.`, 'error');
   }
 }
 

@@ -22,7 +22,10 @@ describe('Sheets Sync Engine', () => {
       });
 
       const result = await fetchFromSheets(mockUrl, mockFetch);
-      expect(mockFetch).toHaveBeenCalledWith(mockUrl);
+      expect(mockFetch).toHaveBeenCalledWith(mockUrl, expect.objectContaining({
+        method: 'GET',
+        redirect: 'follow'
+      }));
       expect(result.success).toBe(true);
       expect(result.cards).toEqual(mockCards);
     });
@@ -49,6 +52,18 @@ describe('Sheets Sync Engine', () => {
       expect(result.error).toBe('Network offline');
       expect(result.cards).toEqual([]);
     });
+    it('should append sheet parameter when sheetName is provided', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => []
+      });
+
+      await fetchFromSheets(mockUrl, mockFetch, 'Active Budget');
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${mockUrl}?sheet=Active%20Budget`,
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
   });
 
   describe('syncToSheets', () => {
@@ -73,6 +88,19 @@ describe('Sheets Sync Engine', () => {
         body: JSON.stringify(mockCards)
       }));
       expect(result.success).toBe(true);
+    });
+
+    it('should append sheet parameter to POST URL when sheetName is provided', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'success' })
+      });
+
+      await syncToSheets(mockUrl, [], mockFetch, 'Active Budget');
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${mockUrl}?sheet=Active%20Budget`,
+        expect.objectContaining({ method: 'POST' })
+      );
     });
 
     it('should handle network POST failures gracefully', async () => {

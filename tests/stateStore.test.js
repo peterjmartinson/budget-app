@@ -160,6 +160,31 @@ describe('stateStore module', () => {
       expect(store.getCards()[0].title).toBe('Imported Card 1');
       expect(store.hasUnsavedChanges).toBe(false);
     });
+
+    it('tracks and persists envelope cash values and sets dirty state on update', () => {
+      const store = new StateStore();
+      expect(store.getEnvelopes()).toEqual({});
+
+      store.setEnvelopeCash('rollover', 500);
+      expect(store.getEnvelopeCash('rollover')).toBe(500);
+      expect(store.hasUnsavedChanges).toBe(true);
+
+      const reloadedStore = new StateStore();
+      expect(reloadedStore.getEnvelopeCash('rollover')).toBe(500);
+    });
+
+    it('replaceEnvelopes bulk updates envelope cash amounts from array or object', () => {
+      const store = new StateStore();
+      store.replaceEnvelopes([
+        { columnId: 'backlog', cash: 100 },
+        { columnId: 'in_budget', cash: 4500 }
+      ]);
+
+      expect(store.getEnvelopes()).toEqual({
+        backlog: 100,
+        in_budget: 4500
+      });
+    });
   });
 });
 

@@ -262,6 +262,31 @@ body {
   color: var(--text-main);
 }
 
+.clickable-cash {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--border-glass-glow);
+  transition: var(--transition-smooth);
+}
+
+.clickable-cash:hover {
+  color: var(--indigo-glow);
+  background: var(--bg-surface-hover);
+  border-radius: var(--radius-xs);
+}
+
+.cash-inline-input {
+  width: 100%;
+  padding: 0.15rem 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--indigo-glow);
+  border-radius: var(--radius-xs);
+  text-align: center;
+  outline: none;
+}
+
 .metric-expenses {
   color: var(--amber-accent);
 }

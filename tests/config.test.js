@@ -6,6 +6,8 @@ describe('configLoader module', () => {
     const yamlStr = `
 board:
   title: "Monthly Budget Board"
+google_sheets:
+  sheet_name: "Active Budget"
 columns:
   - id: "backlog"
     title: "Backlog"
@@ -23,6 +25,8 @@ columns:
     const parsed = parseConfigYaml(yamlStr);
     expect(parsed).toBeDefined();
     expect(parsed.board.title).toBe("Monthly Budget Board");
+    expect(parsed.google_sheets.sheet_name).toBe("Active Budget");
+    expect(DEFAULT_CONFIG.google_sheets.sheet_name).toBe("Active Budget");
     expect(parsed.columns).toHaveLength(4);
     expect(parsed.columns[0]).toEqual({ id: 'backlog', title: 'Backlog', cash_in_play: 0 });
     expect(parsed.columns[1]).toEqual({ id: 'rollover', title: 'Rollover', cash_in_play: 500 });

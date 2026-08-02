@@ -1,5 +1,6 @@
 board:
   title: "Monthly Budget Board"
+google_sheets:
   sheet_name: "Active Budget"
 columns:
   - id: "backlog"

@@ -2,7 +2,9 @@ import jsyaml from 'js-yaml';
 
 export const DEFAULT_CONFIG = {
   board: {
-    title: "Monthly Budget Board",
+    title: "Monthly Budget Board"
+  },
+  google_sheets: {
     sheet_name: "Active Budget"
   },
   columns: [

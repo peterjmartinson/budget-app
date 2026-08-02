@@ -8,8 +8,16 @@
  * @param {Function} [fetchFn] Optional custom fetch implementation for testing
  * @returns {Promise<{success: boolean, cards: Array, error?: string}>}
  */
-export async function fetchFromSheets(webAppUrl, fetchFn) {
-  const customFetch = fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
+export async function fetchFromSheets(webAppUrl, fetchFn, sheetName) {
+  let customFetch = fetchFn;
+  let targetSheetName = sheetName;
+
+  if (typeof fetchFn === 'string') {
+    targetSheetName = fetchFn;
+    customFetch = null;
+  }
+
+  customFetch = customFetch || (typeof fetch !== 'undefined' ? fetch : null);
 
   if (!webAppUrl || typeof webAppUrl !== 'string' || !webAppUrl.trim()) {
     return { success: false, error: 'Google Apps Script Web App URL not configured', cards: [] };
@@ -20,7 +28,13 @@ export async function fetchFromSheets(webAppUrl, fetchFn) {
   }
 
   try {
-    const response = await customFetch(webAppUrl, {
+    let targetUrl = webAppUrl;
+    if (targetSheetName && typeof targetSheetName === 'string' && targetSheetName.trim()) {
+      const separator = targetUrl.includes('?') ? '&' : '?';
+      targetUrl += `${separator}sheet=${encodeURIComponent(targetSheetName.trim())}`;
+    }
+
+    const response = await customFetch(targetUrl, {
       method: 'GET',
       redirect: 'follow'
     });
@@ -48,11 +62,20 @@ export async function fetchFromSheets(webAppUrl, fetchFn) {
  * Sends card data to Google Apps Script Web App via HTTP POST.
  * @param {string} webAppUrl 
  * @param {Array} cards 
- * @param {Function} [fetchFn] Optional custom fetch implementation for testing
+ * @param {Function|string} [fetchFn] Optional custom fetch implementation for testing (or sheetName string)
+ * @param {string} [sheetName] Optional sheet name to target
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function syncToSheets(webAppUrl, cards, fetchFn) {
-  const customFetch = fetchFn || (typeof fetch !== 'undefined' ? fetch : null);
+export async function syncToSheets(webAppUrl, cards, fetchFn, sheetName) {
+  let customFetch = fetchFn;
+  let targetSheetName = sheetName;
+
+  if (typeof fetchFn === 'string') {
+    targetSheetName = fetchFn;
+    customFetch = null;
+  }
+
+  customFetch = customFetch || (typeof fetch !== 'undefined' ? fetch : null);
 
   if (!webAppUrl || typeof webAppUrl !== 'string' || !webAppUrl.trim()) {
     return { success: false, error: 'Google Apps Script Web App URL not configured' };
@@ -63,7 +86,13 @@ export async function syncToSheets(webAppUrl, cards, fetchFn) {
   }
 
   try {
-    const response = await customFetch(webAppUrl, {
+    let targetUrl = webAppUrl;
+    if (targetSheetName && typeof targetSheetName === 'string' && targetSheetName.trim()) {
+      const separator = targetUrl.includes('?') ? '&' : '?';
+      targetUrl += `${separator}sheet=${encodeURIComponent(targetSheetName.trim())}`;
+    }
+
+    const response = await customFetch(targetUrl, {
       method: 'POST',
       body: JSON.stringify(cards || []),
       headers: {

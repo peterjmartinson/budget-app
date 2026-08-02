@@ -2,7 +2,8 @@ import jsyaml from 'js-yaml';
 
 export const DEFAULT_CONFIG = {
   board: {
-    title: "Monthly Budget Board"
+    title: "Monthly Budget Board",
+    sheet_name: "Active Budget"
   },
   columns: [
     { id: "backlog", title: "Backlog", cash_in_play: 0 },

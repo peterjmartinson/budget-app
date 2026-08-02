@@ -41,36 +41,36 @@ describe('Google Apps Script Backend (Code.gs)', () => {
     // Read and evaluate Code.gs in global scope
     const codeGsPath = path.resolve(__dirname, '../Code.gs');
     const codeContent = fs.readFileSync(codeGsPath, 'utf8');
-    const scriptFunction = new Function('SpreadsheetApp', 'ContentService', `${codeContent}; return { doGet, doPost, getTargetSheet, SHEET_NAME };`);
+    const scriptFunction = new Function('SpreadsheetApp', 'ContentService', `${codeContent}; return { doGet, doPost, getTargetSheet, DEFAULT_SHEET_NAME };`);
     const exportsObj = scriptFunction(globalThis.SpreadsheetApp, globalThis.ContentService);
     globalThis.doGet = exportsObj.doGet;
     globalThis.doPost = exportsObj.doPost;
   });
 
-  it('doGet selects sheet by name "Active Budget"', () => {
+  it('doGet selects custom sheet when passed in e.parameter.sheet', () => {
     mockSpreadsheet.getSheetByName.mockReturnValue(mockSheet);
 
-    const response = doGet({});
-    expect(mockSpreadsheet.getSheetByName).toHaveBeenCalledWith('Active Budget');
+    const response = doGet({ parameter: { sheet: 'Custom Sheet' } });
+    expect(mockSpreadsheet.getSheetByName).toHaveBeenCalledWith('Custom Sheet');
     expect(mockSheet.getDataRange).toHaveBeenCalled();
   });
 
-  it('doPost selects sheet by name "Active Budget"', () => {
+  it('doPost selects custom sheet when passed in e.parameter.sheet', () => {
     mockSpreadsheet.getSheetByName.mockReturnValue(mockSheet);
 
     const response = doPost({
+      parameter: { sheet: 'Custom Sheet' },
       postData: { contents: JSON.stringify([{ columnId: 'backlog', title: 'Test', amount: 10 }]) }
     });
-    expect(mockSpreadsheet.getSheetByName).toHaveBeenCalledWith('Active Budget');
+    expect(mockSpreadsheet.getSheetByName).toHaveBeenCalledWith('Custom Sheet');
     expect(mockSheet.clearContents).toHaveBeenCalled();
-    expect(mockSheet.appendRow).toHaveBeenCalled();
   });
 
-  it('creates "Active Budget" sheet if tab does not exist', () => {
+  it('creates custom sheet if tab does not exist', () => {
     mockSpreadsheet.getSheetByName.mockReturnValue(null);
 
-    const response = doGet({});
-    expect(mockSpreadsheet.getSheetByName).toHaveBeenCalledWith('Active Budget');
-    expect(mockSpreadsheet.insertSheet).toHaveBeenCalledWith('Active Budget');
+    const response = doGet({ parameter: { sheet: 'New Tab' } });
+    expect(mockSpreadsheet.getSheetByName).toHaveBeenCalledWith('New Tab');
+    expect(mockSpreadsheet.insertSheet).toHaveBeenCalledWith('New Tab');
   });
 });

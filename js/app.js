@@ -212,8 +212,10 @@ async function handleFetchSheets(container) {
     return;
   }
 
+  const sheetName = appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
+
   showToast('Fetching cards from Google Sheet...', 'info');
-  const result = await fetchFromSheets(url);
+  const result = await fetchFromSheets(url, null, sheetName);
 
   if (result.success) {
     stateStore.replaceCards(result.cards);
@@ -232,8 +234,10 @@ async function handleSyncSheets(container) {
     return;
   }
 
+  const sheetName = appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
+
   showToast('Syncing cards to Google Sheet...', 'info');
-  const result = await syncToSheets(url, stateStore.getCards());
+  const result = await syncToSheets(url, stateStore.getCards(), null, sheetName);
 
   if (result.success) {
     stateStore.markSynced();

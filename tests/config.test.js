@@ -23,6 +23,7 @@ columns:
     const parsed = parseConfigYaml(yamlStr);
     expect(parsed).toBeDefined();
     expect(parsed.board.title).toBe("Monthly Budget Board");
+    expect(DEFAULT_CONFIG.board.sheet_name).toBe("Active Budget");
     expect(parsed.columns).toHaveLength(4);
     expect(parsed.columns[0]).toEqual({ id: 'backlog', title: 'Backlog', cash_in_play: 0 });
     expect(parsed.columns[1]).toEqual({ id: 'rollover', title: 'Rollover', cash_in_play: 500 });

@@ -42,12 +42,27 @@ function doGet(e) {
     
     var headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
     var colIndex = headers.indexOf('column');
+    if (colIndex === -1) colIndex = 0;
+
+    var cashIndex = headers.indexOf('cash');
+    if (cashIndex !== -1 && headers.indexOf('title') === -1) {
+      var envelopes = [];
+      for (var i = 1; i < data.length; i++) {
+        var row = data[i];
+        if (!row[colIndex]) continue;
+        envelopes.push({
+          columnId: String(row[colIndex]),
+          cash: Number(row[cashIndex]) || 0
+        });
+      }
+      return createJsonResponse(envelopes);
+    }
+    
     var titleIndex = headers.indexOf('title');
     var descIndex = headers.indexOf('description');
     var amountIndex = headers.indexOf('amount');
 
     // Fallbacks if header names differ slightly
-    if (colIndex === -1) colIndex = 0;
     if (titleIndex === -1) titleIndex = 1;
     if (descIndex === -1) descIndex = 2;
     if (amountIndex === -1) amountIndex = 3;
@@ -74,16 +89,31 @@ function doPost(e) {
   try {
     var sheet = getTargetSheet(e);
     var contents = e.postData ? e.postData.contents : '';
-    var cards = JSON.parse(contents);
+    var items = JSON.parse(contents);
     
-    if (!Array.isArray(cards)) {
-      return createJsonResponse({ status: 'error', message: 'Expected JSON array of cards' });
+    if (!Array.isArray(items)) {
+      return createJsonResponse({ status: 'error', message: 'Expected JSON array' });
     }
     
+    var isEnvelopeSync = (e && e.parameter && (e.parameter.type === 'envelopes' || e.parameter.sheet === 'Envelopes')) ||
+                         (items.length > 0 && items[0].cash !== undefined && items[0].title === undefined);
+
     sheet.clearContents();
+    
+    if (isEnvelopeSync) {
+      sheet.appendRow(['Column', 'Cash']);
+      items.forEach(function(env) {
+        sheet.appendRow([
+          env.columnId || env.column || '',
+          Number(env.cash) || 0
+        ]);
+      });
+      return createJsonResponse({ status: 'success', count: items.length, type: 'envelopes' });
+    }
+
     sheet.appendRow(['Column', 'Title', 'Description', 'Amount']);
     
-    cards.forEach(function(card) {
+    items.forEach(function(card) {
       sheet.appendRow([
         card.columnId || 'backlog',
         card.title || '',
@@ -92,7 +122,7 @@ function doPost(e) {
       ]);
     });
     
-    return createJsonResponse({ status: 'success', count: cards.length });
+    return createJsonResponse({ status: 'success', count: items.length });
   } catch (err) {
     return createJsonResponse({ status: 'error', message: err.toString() });
   }

@@ -21,6 +21,8 @@ export function renderBoard(state, containerElement, cards = [], store = null) {
   const isDirty = store ? store.hasUnsavedChanges : false;
   const sheetsUrl = store ? store.getSheetsUrl() : '';
 
+  const envelopes = (store && typeof store.getEnvelopes === 'function') ? store.getEnvelopes() : {};
+
   containerElement.innerHTML = `
     <header class="board-header">
       <div class="header-content">
@@ -72,7 +74,15 @@ export function renderBoard(state, containerElement, cards = [], store = null) {
 
     <main class="board-container">
       <div class="board-columns">
-        ${columns.map(column => renderColumn(column, cards.filter(c => c.columnId === column.id))).join('')}
+        ${columns.map(column => {
+          const colWithCash = {
+            ...column,
+            cash_in_play: (envelopes && envelopes[column.id] !== undefined) 
+              ? envelopes[column.id] 
+              : (column.cash_in_play !== undefined ? column.cash_in_play : 0)
+          };
+          return renderColumn(colWithCash, cards.filter(c => c.columnId === column.id));
+        }).join('')}
       </div>
     </main>
 
@@ -148,9 +158,9 @@ function renderColumn(column, columnCards = []) {
           <h2 class="column-title">${escapeHtml(column.title)}</h2>
         </div>
         <div class="column-metrics-grid">
-          <div class="metric-item" title="Configured Cash in Play">
+          <div class="metric-item" title="Click to edit Cash in Play">
             <span class="metric-label">Cash</span>
-            <span class="metric-value metric-cash">${formattedCash}</span>
+            <span class="metric-value metric-cash clickable-cash" data-column-id="${escapeHtml(column.id)}" role="button" tabindex="0">${formattedCash}</span>
           </div>
           <div class="metric-item" title="Sum of Column Expenses">
             <span class="metric-label">Expenses</span>

@@ -25,6 +25,7 @@ export class StateStore {
     this.storageKey = storageKey;
     this.urlKey = urlKey;
     this.cards = [];
+    this.envelopes = {};
     this.hasUnsavedChanges = false;
     this.loadState();
   }
@@ -33,18 +34,30 @@ export class StateStore {
     try {
       if (typeof localStorage === 'undefined') {
         this.cards = [];
+        this.envelopes = {};
         return this.cards;
       }
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
-        this.cards = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.cards) ? parsed.cards : []);
+        if (Array.isArray(parsed)) {
+          this.cards = parsed;
+          this.envelopes = {};
+        } else if (parsed && typeof parsed === 'object') {
+          this.cards = Array.isArray(parsed.cards) ? parsed.cards : [];
+          this.envelopes = (parsed.envelopes && typeof parsed.envelopes === 'object') ? parsed.envelopes : {};
+        } else {
+          this.cards = [];
+          this.envelopes = {};
+        }
       } else {
         this.cards = [];
+        this.envelopes = {};
       }
     } catch (err) {
       console.warn('Failed to load state from localStorage:', err);
       this.cards = [];
+      this.envelopes = {};
     }
     return this.cards;
   }
@@ -52,7 +65,10 @@ export class StateStore {
   saveState() {
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.cards));
+        localStorage.setItem(this.storageKey, JSON.stringify({
+          cards: this.cards,
+          envelopes: this.envelopes
+        }));
       }
     } catch (err) {
       console.error('Failed to save state to localStorage:', err);
@@ -82,6 +98,42 @@ export class StateStore {
 
   markSynced() {
     this.hasUnsavedChanges = false;
+  }
+
+  getEnvelopes() {
+    return this.envelopes;
+  }
+
+  getEnvelopeCash(columnId) {
+    return Number(this.envelopes[columnId]) || 0;
+  }
+
+  setEnvelopeCash(columnId, amount) {
+    const parsed = parseAmount(amount);
+    this.envelopes[columnId] = parsed;
+    this.hasUnsavedChanges = true;
+    this.saveState();
+    return parsed;
+  }
+
+  replaceEnvelopes(envelopesData = []) {
+    if (Array.isArray(envelopesData)) {
+      const newEnvelopes = {};
+      envelopesData.forEach(item => {
+        const col = item.columnId || item.column;
+        if (col) {
+          newEnvelopes[col] = parseAmount(item.cash);
+        }
+      });
+      this.envelopes = newEnvelopes;
+    } else if (envelopesData && typeof envelopesData === 'object') {
+      const newEnvelopes = {};
+      Object.keys(envelopesData).forEach(col => {
+        newEnvelopes[col] = parseAmount(envelopesData[col]);
+      });
+      this.envelopes = newEnvelopes;
+    }
+    this.saveState();
   }
 
   replaceCards(newCards = []) {

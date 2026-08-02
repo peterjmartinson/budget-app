@@ -5,13 +5,14 @@ export const DEFAULT_CONFIG = {
     title: "Monthly Budget Board"
   },
   google_sheets: {
-    sheet_name: "Active Budget"
+    sheet_name: "Active Budget",
+    envelopes_sheet_name: "Envelopes"
   },
   columns: [
-    { id: "backlog", title: "Backlog", cash_in_play: 0 },
-    { id: "rollover", title: "Rollover", cash_in_play: 500 },
-    { id: "in_budget", title: "In Month's Budget", cash_in_play: 4500 },
-    { id: "unfunded", title: "Unfunded", cash_in_play: 0 }
+    { id: "backlog", title: "Backlog" },
+    { id: "rollover", title: "Rollover" },
+    { id: "in_budget", title: "In Month's Budget" },
+    { id: "unfunded", title: "Unfunded" }
   ]
 };
 

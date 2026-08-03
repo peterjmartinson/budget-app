@@ -66,14 +66,18 @@ describe('card DOM rendering & modal components', () => {
     expect(backlogCards[0].querySelector('.card-title').textContent).toBe('Coffee');
   });
 
-  it('card rendering includes edit and delete action buttons with dataset IDs', () => {
+  it('does not render edit/delete buttons or card description on card front, and renders modal delete button', () => {
     const card = stateStore.addCard({ title: 'Subscriptions', description: 'Streaming', amount: 30, columnId: 'in_budget' });
     renderBoard(mockConfigState, container, stateStore.getCards());
 
-    const editBtn = container.querySelector(`.btn-edit-card[data-card-id="${card.id}"]`);
-    const deleteBtn = container.querySelector(`.btn-delete-card[data-card-id="${card.id}"]`);
+    const editBtn = container.querySelector('.btn-edit-card');
+    const deleteBtn = container.querySelector('.btn-delete-card');
+    const cardDesc = container.querySelector('.card-description');
+    const modalDeleteBtn = container.querySelector('#modal-delete-btn');
 
-    expect(editBtn).not.toBeNull();
-    expect(deleteBtn).not.toBeNull();
+    expect(editBtn).toBeNull();
+    expect(deleteBtn).toBeNull();
+    expect(cardDesc).toBeNull();
+    expect(modalDeleteBtn).not.toBeNull();
   });
 });

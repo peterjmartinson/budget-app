@@ -73,10 +73,11 @@ function setupEventListeners(container) {
       return;
     }
 
-    // Edit Card Trigger
-    const editBtn = event.target.closest('.btn-edit-card');
-    if (editBtn) {
-      const cardId = editBtn.dataset.cardId;
+    // Card Item Click Trigger (Whole-Card Click to Edit)
+    const cardEl = event.target.closest('.card-item');
+    const dragHandle = event.target.closest('.card-drag-handle');
+    if (cardEl && !dragHandle) {
+      const cardId = cardEl.dataset.cardId;
       const card = stateStore.getCards().find(c => c.id === cardId);
       if (card) {
         openModal(card);
@@ -84,8 +85,8 @@ function setupEventListeners(container) {
       return;
     }
 
-    // Delete Card Trigger
-    const deleteBtn = event.target.closest('.btn-delete-card');
+    // Modal Delete Card Trigger
+    const deleteBtn = event.target.closest('#modal-delete-btn');
     if (deleteBtn) {
       const cardId = deleteBtn.dataset.cardId;
       const card = stateStore.getCards().find(c => c.id === cardId);
@@ -94,6 +95,7 @@ function setupEventListeners(container) {
           window.confirm(`Are you sure you want to delete "${card.title}"?`) : true;
         if (confirmed) {
           stateStore.deleteCard(cardId);
+          closeModal();
           renderApp(container);
         }
       }
@@ -158,8 +160,18 @@ function setupEventListeners(container) {
     }
   });
 
-  // Change Event for File Input
+  // Change Event for File Input & Column Sort Select
   container.addEventListener('change', (event) => {
+    if (event.target.classList.contains('column-sort-select')) {
+      const columnId = event.target.dataset.columnId;
+      const sortOption = event.target.value;
+      if (columnId && stateStore) {
+        stateStore.setColumnSort(columnId, sortOption);
+        renderApp(container);
+      }
+      return;
+    }
+
     if (event.target.id === 'csv-file-input') {
       handleImportCSVFile(event.target.files[0], container);
     }
@@ -396,6 +408,7 @@ function openModal(cardData = {}) {
   const titleInput = document.getElementById('card-title-input');
   const amountInput = document.getElementById('card-amount-input');
   const descInput = document.getElementById('card-desc-input');
+  const deleteBtn = document.getElementById('modal-delete-btn');
 
   if (!modal) return;
 
@@ -406,6 +419,10 @@ function openModal(cardData = {}) {
     titleInput.value = cardData.title || '';
     amountInput.value = cardData.amount !== undefined ? cardData.amount : '';
     descInput.value = cardData.description || '';
+    if (deleteBtn) {
+      deleteBtn.classList.remove('hidden');
+      deleteBtn.dataset.cardId = cardData.id;
+    }
   } else {
     modalHeading.textContent = 'Add Card';
     cardIdInput.value = '';
@@ -413,6 +430,10 @@ function openModal(cardData = {}) {
     titleInput.value = '';
     amountInput.value = '';
     descInput.value = '';
+    if (deleteBtn) {
+      deleteBtn.classList.add('hidden');
+      delete deleteBtn.dataset.cardId;
+    }
   }
 
   modal.classList.remove('hidden');

@@ -227,6 +227,32 @@ body {
   letter-spacing: -0.01em;
 }
 
+.column-sort-select {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.2rem 0.4rem;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.column-sort-select:hover,
+.column-sort-select:focus {
+  color: var(--text-main);
+  border-color: var(--border-glass-glow);
+  background: var(--bg-surface-hover);
+}
+
+.column-sort-select option {
+  background: #1e2538;
+  color: var(--text-main);
+}
+
 .column-metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -358,13 +384,9 @@ body {
   flex-direction: column;
   gap: 0.75rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  cursor: grab;
+  cursor: pointer;
   position: relative;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-}
-
-.card-item:active {
-  cursor: grabbing;
 }
 
 .card-item:hover {
@@ -386,7 +408,12 @@ body {
   right: 0.75rem;
   color: var(--text-dim);
   opacity: 0.4;
+  cursor: grab;
   transition: var(--transition-smooth);
+}
+
+.card-drag-handle:active {
+  cursor: grabbing;
 }
 
 .card-item:hover .card-drag-handle {
@@ -421,58 +448,16 @@ body {
   white-space: nowrap;
 }
 
-.card-description {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-.card-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid hsla(220, 20%, 80%, 0.08);
-}
-
-.btn-edit-card,
-.btn-delete-card {
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 0.3rem 0.6rem;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  transition: var(--transition-smooth);
-  border: 1px solid transparent;
-}
-
-.btn-edit-card {
-  background: hsla(220, 20%, 30%, 0.4);
-  color: var(--text-muted);
-  border-color: var(--border-glass);
-}
-
-.btn-edit-card:hover {
-  background: hsla(220, 80%, 55%, 0.2);
-  color: #ffffff;
-  border-color: hsla(220, 80%, 55%, 0.4);
-}
-
-.btn-delete-card {
-  background: hsla(350, 75%, 40%, 0.15);
+.btn-danger {
+  background: hsla(350, 75%, 40%, 0.2);
   color: var(--rose-accent);
-  border-color: hsla(350, 75%, 55%, 0.2);
+  border: 1px solid hsla(350, 75%, 55%, 0.3);
 }
 
-.btn-delete-card:hover {
-  background: hsla(350, 75%, 45%, 0.3);
+.btn-danger:hover {
+  background: hsla(350, 75%, 45%, 0.4);
   color: #ffffff;
-  border-color: hsla(350, 75%, 55%, 0.5);
+  border-color: hsla(350, 75%, 55%, 0.6);
 }
 
 /* Add Card Button in Column Footer */

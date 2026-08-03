@@ -26,6 +26,7 @@ export class StateStore {
     this.urlKey = urlKey;
     this.cards = [];
     this.envelopes = {};
+    this.columnSorts = {};
     this.hasUnsavedChanges = false;
     this.loadState();
   }
@@ -35,6 +36,7 @@ export class StateStore {
       if (typeof localStorage === 'undefined') {
         this.cards = [];
         this.envelopes = {};
+        this.columnSorts = {};
         return this.cards;
       }
       const raw = localStorage.getItem(this.storageKey);
@@ -43,21 +45,26 @@ export class StateStore {
         if (Array.isArray(parsed)) {
           this.cards = parsed;
           this.envelopes = {};
+          this.columnSorts = {};
         } else if (parsed && typeof parsed === 'object') {
           this.cards = Array.isArray(parsed.cards) ? parsed.cards : [];
           this.envelopes = (parsed.envelopes && typeof parsed.envelopes === 'object') ? parsed.envelopes : {};
+          this.columnSorts = (parsed.columnSorts && typeof parsed.columnSorts === 'object') ? parsed.columnSorts : {};
         } else {
           this.cards = [];
           this.envelopes = {};
+          this.columnSorts = {};
         }
       } else {
         this.cards = [];
         this.envelopes = {};
+        this.columnSorts = {};
       }
     } catch (err) {
       console.warn('Failed to load state from localStorage:', err);
       this.cards = [];
       this.envelopes = {};
+      this.columnSorts = {};
     }
     return this.cards;
   }
@@ -67,12 +74,26 @@ export class StateStore {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(this.storageKey, JSON.stringify({
           cards: this.cards,
-          envelopes: this.envelopes
+          envelopes: this.envelopes,
+          columnSorts: this.columnSorts
         }));
       }
     } catch (err) {
       console.error('Failed to save state to localStorage:', err);
     }
+  }
+
+  getColumnSort(columnId) {
+    if (!columnId) return 'amount-desc';
+    return this.columnSorts[columnId] || 'amount-desc';
+  }
+
+  setColumnSort(columnId, sortOption) {
+    if (!columnId) return;
+    const validOptions = ['amount-desc', 'amount-asc', 'title-asc', 'title-desc'];
+    const option = validOptions.includes(sortOption) ? sortOption : 'amount-desc';
+    this.columnSorts[columnId] = option;
+    this.saveState();
   }
 
   getSheetsUrl() {

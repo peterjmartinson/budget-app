@@ -227,6 +227,32 @@ body {
   letter-spacing: -0.01em;
 }
 
+.column-sort-select {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.2rem 0.4rem;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.column-sort-select:hover,
+.column-sort-select:focus {
+  color: var(--text-main);
+  border-color: var(--border-glass-glow);
+  background: var(--bg-surface-hover);
+}
+
+.column-sort-select option {
+  background: #1e2538;
+  color: var(--text-main);
+}
+
 .column-metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

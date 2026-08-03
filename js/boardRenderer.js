@@ -81,7 +81,7 @@ export function renderBoard(state, containerElement, cards = [], store = null) {
               ? envelopes[column.id] 
               : (column.cash_in_play !== undefined ? column.cash_in_play : 0)
           };
-          return renderColumn(colWithCash, cards.filter(c => c.columnId === column.id));
+          return renderColumn(colWithCash, cards.filter(c => c.columnId === column.id), store);
         }).join('')}
       </div>
     </main>
@@ -145,7 +145,30 @@ export function renderBoard(state, containerElement, cards = [], store = null) {
   `;
 }
 
-function renderColumn(column, columnCards = []) {
+export function sortCards(cards = [], sortOption = 'amount-desc') {
+  if (!Array.isArray(cards)) return [];
+  const copied = [...cards];
+  return copied.sort((a, b) => {
+    switch (sortOption) {
+      case 'amount-asc':
+        return (Number(a.amount) || 0) - (Number(b.amount) || 0);
+      case 'title-asc':
+        return String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
+      case 'title-desc':
+        return String(b.title || '').localeCompare(String(a.title || ''), undefined, { sensitivity: 'base' });
+      case 'amount-desc':
+      default:
+        return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+    }
+  });
+}
+
+function renderColumn(column, columnCards = [], store = null) {
+  const sortOption = (store && typeof store.getColumnSort === 'function') 
+    ? store.getColumnSort(column.id) 
+    : 'amount-desc';
+  const sortedCards = sortCards(columnCards, sortOption);
+
   const metrics = calculateColumnMetrics(column, columnCards);
   const formattedCash = formatCurrency(metrics.cashInPlay);
   const formattedExpenses = formatCurrency(metrics.totalExpenses);
@@ -157,6 +180,12 @@ function renderColumn(column, columnCards = []) {
       <div class="column-header">
         <div class="column-title-group">
           <h2 class="column-title">${escapeHtml(column.title)}</h2>
+          <select class="column-sort-select" data-column-id="${escapeHtml(column.id)}" title="Sort cards in column">
+            <option value="amount-desc" ${sortOption === 'amount-desc' ? 'selected' : ''}>$ High-Low</option>
+            <option value="amount-asc" ${sortOption === 'amount-asc' ? 'selected' : ''}>$ Low-High</option>
+            <option value="title-asc" ${sortOption === 'title-asc' ? 'selected' : ''}>A-Z</option>
+            <option value="title-desc" ${sortOption === 'title-desc' ? 'selected' : ''}>Z-A</option>
+          </select>
         </div>
         <div class="column-metrics-grid">
           <div class="metric-item" title="Click to edit Cash in Play">
@@ -175,12 +204,12 @@ function renderColumn(column, columnCards = []) {
       </div>
 
       <div class="column-cards-container" data-column-id="${escapeHtml(column.id)}">
-        ${columnCards.length === 0 ? `
+        ${sortedCards.length === 0 ? `
           <div class="empty-column-placeholder">
             <span class="placeholder-icon">+</span>
             <p>No cards in this column</p>
           </div>
-        ` : columnCards.map(card => renderCardItem(card)).join('')}
+        ` : sortedCards.map(card => renderCardItem(card)).join('')}
       </div>
 
       <div class="column-footer">

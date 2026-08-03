@@ -160,8 +160,18 @@ function setupEventListeners(container) {
     }
   });
 
-  // Change Event for File Input
+  // Change Event for File Input & Column Sort Select
   container.addEventListener('change', (event) => {
+    if (event.target.classList.contains('column-sort-select')) {
+      const columnId = event.target.dataset.columnId;
+      const sortOption = event.target.value;
+      if (columnId && stateStore) {
+        stateStore.setColumnSort(columnId, sortOption);
+        renderApp(container);
+      }
+      return;
+    }
+
     if (event.target.id === 'csv-file-input') {
       handleImportCSVFile(event.target.files[0], container);
     }

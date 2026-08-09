@@ -60,6 +60,11 @@ export class StateStore {
         this.envelopes = {};
         this.columnSorts = {};
       }
+
+      this.cards = this.cards.map(c => ({
+        ...c,
+        transactions: Array.isArray(c.transactions) ? c.transactions : []
+      }));
     } catch (err) {
       console.warn('Failed to load state from localStorage:', err);
       this.cards = [];
@@ -165,7 +170,8 @@ export class StateStore {
       title: String(c.title || 'Untitled Expense').trim(),
       description: String(c.description || '').trim(),
       amount: parseAmount(c.amount),
-      createdAt: c.createdAt || new Date().toISOString()
+      createdAt: c.createdAt || new Date().toISOString(),
+      transactions: Array.isArray(c.transactions) ? c.transactions : []
     }));
     this.hasUnsavedChanges = false;
     this.saveState();
@@ -179,14 +185,15 @@ export class StateStore {
     return this.cards.filter(card => card.columnId === columnId);
   }
 
-  addCard({ title, description = '', amount = 0, columnId }) {
+  addCard({ title, description = '', amount = 0, columnId, transactions = [] }) {
     const card = {
       id: generateUUID(),
       title: String(title || 'New Expense').trim(),
       description: String(description || '').trim(),
       amount: parseAmount(amount),
       columnId: String(columnId || 'backlog'),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      transactions: Array.isArray(transactions) ? transactions : []
     };
     this.cards.push(card);
     this.hasUnsavedChanges = true;
@@ -227,4 +234,49 @@ export class StateStore {
     this.saveState();
     return card;
   }
+
+  addTransaction(cardId, { date, description = '', amount = 0 }) {
+    const card = this.cards.find(c => c.id === cardId);
+    if (!card) return null;
+
+    if (!Array.isArray(card.transactions)) {
+      card.transactions = [];
+    }
+
+    const transaction = {
+      id: 'txn_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+      cardId: card.id,
+      date: String(date || new Date().toISOString().slice(0, 10)).trim(),
+      description: String(description || '').trim(),
+      amount: parseAmount(amount)
+    };
+
+    card.transactions.push(transaction);
+    this.hasUnsavedChanges = true;
+    this.saveState();
+    return transaction;
+  }
+
+  deleteTransaction(cardId, transactionId) {
+    const card = this.cards.find(c => c.id === cardId);
+    if (!card || !Array.isArray(card.transactions)) return false;
+
+    const index = card.transactions.findIndex(t => t.id === transactionId);
+    if (index === -1) return false;
+
+    card.transactions.splice(index, 1);
+    this.hasUnsavedChanges = true;
+    this.saveState();
+    return true;
+  }
+
+  setCardTransactions(cardId, transactions = []) {
+    const card = this.cards.find(c => c.id === cardId);
+    if (!card) return false;
+
+    card.transactions = Array.isArray(transactions) ? transactions : [];
+    this.saveState();
+    return true;
+  }
 }
+

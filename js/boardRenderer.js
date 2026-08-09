@@ -1,4 +1,4 @@
-import { calculateColumnMetrics } from './mathEngine.js';
+import { calculateColumnMetrics, calculateCardMetrics } from './mathEngine.js';
 
 export function formatCurrency(amount) {
   const num = Number(amount) || 0;
@@ -88,36 +88,73 @@ export function renderBoard(state, containerElement, cards = [], store = null) {
 
     <!-- Card Edit / Create Modal -->
     <div id="card-modal" class="modal-overlay hidden" aria-hidden="true">
-      <div class="modal-card">
+      <div class="modal-card modal-card-large">
         <div class="modal-header">
           <h3 id="modal-title" class="modal-heading">Add Card</h3>
           <button id="modal-close-btn" class="modal-close" aria-label="Close">&times;</button>
         </div>
-        <form id="card-form" class="modal-form">
-          <input type="hidden" id="card-id-input" value="">
-          <input type="hidden" id="card-column-input" value="">
-          
-          <div class="form-group">
-            <label for="card-title-input">Title</label>
-            <input type="text" id="card-title-input" required placeholder="e.g., Grocery Shopping" class="form-input">
-          </div>
+        <div class="modal-body-scrollable">
+          <form id="card-form" class="modal-form">
+            <input type="hidden" id="card-id-input" value="">
+            <input type="hidden" id="card-column-input" value="">
+            
+            <div class="form-group">
+              <label for="card-title-input">Title</label>
+              <input type="text" id="card-title-input" required placeholder="e.g., Grocery Shopping" class="form-input">
+            </div>
 
-          <div class="form-group">
-            <label for="card-amount-input">Amount ($)</label>
-            <input type="number" id="card-amount-input" step="0.01" min="0" required placeholder="0.00" class="form-input">
-          </div>
+            <div class="form-group">
+              <label for="card-amount-input">Budget Limit ($)</label>
+              <input type="number" id="card-amount-input" step="0.01" min="0" required placeholder="0.00" class="form-input">
+            </div>
 
-          <div class="form-group">
-            <label for="card-desc-input">Description</label>
-            <textarea id="card-desc-input" rows="3" placeholder="Optional details..." class="form-input form-textarea"></textarea>
-          </div>
+            <div class="form-group">
+              <label for="card-desc-input">Description</label>
+              <textarea id="card-desc-input" rows="2" placeholder="Optional details..." class="form-input form-textarea"></textarea>
+            </div>
 
-          <div class="modal-actions">
-            <button type="button" id="modal-delete-btn" class="btn btn-danger hidden">Delete Card</button>
-            <button type="button" id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
-            <button type="submit" id="modal-submit-btn" class="btn btn-primary">Save Card</button>
+            <div class="modal-actions">
+              <button type="button" id="modal-delete-btn" class="btn btn-danger hidden">Delete Card</button>
+              <button type="button" id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+              <button type="submit" id="modal-submit-btn" class="btn btn-primary">Save Envelope</button>
+            </div>
+          </form>
+
+          <!-- Drawdown & Transaction Ledger Section -->
+          <div id="card-ledger-section" class="card-ledger-container hidden">
+            <hr class="section-divider" />
+            <h4 class="ledger-heading">Envelope Drawdown & Ledger</h4>
+            
+            <div class="drawdown-progress-container">
+              <div class="drawdown-metrics-row">
+                <span id="drawdown-spent-text" class="drawdown-text-spent">Spent: $0.00 / $0.00</span>
+                <span id="drawdown-remaining-text" class="drawdown-text-remaining">Remaining: $0.00</span>
+              </div>
+              <div class="progress-bar-track">
+                <div id="drawdown-progress-bar" class="progress-bar-fill progress-normal" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="ledger-history">
+              <h5 class="subheading">Logged Transactions</h5>
+              <div id="transaction-ledger-list" class="transaction-list">
+                <!-- Transaction items dynamically inserted -->
+              </div>
+            </div>
+
+            <div class="quick-add-transaction">
+              <h5 class="subheading">Quick-Add Transaction</h5>
+              <form id="add-transaction-form" class="quick-add-form">
+                <div class="quick-add-grid">
+                  <input type="date" id="tx-date-input" required class="form-input form-input-sm">
+                  <input type="text" id="tx-desc-input" placeholder="Merchant / Description" required class="form-input form-input-sm">
+                  <input type="number" id="tx-amount-input" step="0.01" min="0.01" placeholder="Amount ($)" required class="form-input form-input-sm">
+                  <button type="submit" id="btn-add-tx" class="btn btn-primary btn-sm">+ Log</button>
+                </div>
+              </form>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
 
@@ -171,9 +208,10 @@ function renderColumn(column, columnCards = [], store = null) {
 
   const metrics = calculateColumnMetrics(column, columnCards);
   const formattedCash = formatCurrency(metrics.cashInPlay);
-  const formattedExpenses = formatCurrency(metrics.totalExpenses);
-  const formattedBalance = formatCurrency(metrics.netBalance);
-  const balanceClass = metrics.isNegative ? 'negative-balance' : 'positive-balance';
+  const formattedNetBalance = formatCurrency(metrics.netBalance);
+  const formattedActualBalance = formatCurrency(metrics.actualBalance);
+  const netBalanceClass = metrics.isNegative ? 'negative-balance' : 'positive-balance';
+  const actualBalanceClass = metrics.isActualNegative ? 'negative-balance' : 'positive-balance';
 
   return `
     <section class="board-column" data-column-id="${escapeHtml(column.id)}">
@@ -192,13 +230,13 @@ function renderColumn(column, columnCards = [], store = null) {
             <span class="metric-label">Cash</span>
             <span class="metric-value metric-cash clickable-cash" data-column-id="${escapeHtml(column.id)}" role="button" tabindex="0">${formattedCash}</span>
           </div>
-          <div class="metric-item" title="Sum of Column Expenses">
-            <span class="metric-label">Expenses</span>
-            <span class="metric-value metric-expenses">${formattedExpenses}</span>
+          <div class="metric-item" title="Budget Net Balance (Cash - Budgeted)">
+            <span class="metric-label">Budget Net</span>
+            <span class="metric-value metric-balance ${netBalanceClass}">${formattedNetBalance}</span>
           </div>
-          <div class="metric-item" title="Net Balance (Cash - Expenses)">
-            <span class="metric-label">Net Balance</span>
-            <span class="metric-value metric-balance ${balanceClass}">${formattedBalance}</span>
+          <div class="metric-item" title="Actual Remaining Cash (Cash - Actual Spent)">
+            <span class="metric-label">Actual Rem</span>
+            <span class="metric-value metric-actual-balance ${actualBalanceClass}">${formattedActualBalance}</span>
           </div>
         </div>
       </div>
@@ -223,6 +261,10 @@ function renderColumn(column, columnCards = [], store = null) {
 
 function renderCardItem(card) {
   const formattedAmount = formatCurrency(card.amount || 0);
+  const cardMetrics = calculateCardMetrics(card);
+  const formattedSpent = formatCurrency(cardMetrics.spent);
+  const formattedRemaining = formatCurrency(cardMetrics.remaining);
+  const statusClass = cardMetrics.status === 'danger' ? 'status-danger' : cardMetrics.status === 'amber' ? 'status-amber' : 'status-normal';
 
   return `
     <div class="card-item" draggable="true" data-card-id="${escapeHtml(card.id)}">
@@ -233,6 +275,10 @@ function renderCardItem(card) {
         <div class="card-header-row">
           <h3 class="card-title">${escapeHtml(card.title)}</h3>
           <span class="card-amount">${formattedAmount}</span>
+        </div>
+        <div class="card-drawdown-summary">
+          <span class="drawdown-spent">Spent: ${formattedSpent}</span>
+          <span class="drawdown-remaining ${statusClass}">Rem: ${formattedRemaining}</span>
         </div>
       </div>
     </div>
@@ -248,3 +294,4 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+

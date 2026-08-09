@@ -41,6 +41,38 @@ function doGet(e) {
     }
     
     var headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
+
+    var isTransactionSync = (e && e.parameter && (e.parameter.type === 'transactions' || e.parameter.sheet === 'Transactions')) ||
+                            headers.indexOf('cardid') !== -1;
+
+    if (isTransactionSync) {
+      var txIdIndex = headers.indexOf('id');
+      var cardIdIndex = headers.indexOf('cardid');
+      var dateIndex = headers.indexOf('date');
+      var txDescIndex = headers.indexOf('description');
+      var txAmountIndex = headers.indexOf('amount');
+
+      if (txIdIndex === -1) txIdIndex = 0;
+      if (cardIdIndex === -1) cardIdIndex = 1;
+      if (dateIndex === -1) dateIndex = 2;
+      if (txDescIndex === -1) txDescIndex = 3;
+      if (txAmountIndex === -1) txAmountIndex = 4;
+
+      var transactions = [];
+      for (var i = 1; i < data.length; i++) {
+        var row = data[i];
+        if (!row[cardIdIndex] && !row[txAmountIndex]) continue;
+        transactions.push({
+          id: String(row[txIdIndex] || ''),
+          cardId: String(row[cardIdIndex] || ''),
+          date: String(row[dateIndex] || ''),
+          description: String(row[txDescIndex] || ''),
+          amount: Number(row[txAmountIndex]) || 0
+        });
+      }
+      return createJsonResponse(transactions);
+    }
+    
     var colIndex = headers.indexOf('column');
     if (colIndex === -1) colIndex = 0;
 
@@ -58,9 +90,11 @@ function doGet(e) {
       return createJsonResponse(envelopes);
     }
     
+    var idIndex = headers.indexOf('id');
     var titleIndex = headers.indexOf('title');
     var descIndex = headers.indexOf('description');
     var amountIndex = headers.indexOf('amount');
+    var createdAtIndex = headers.indexOf('createdat');
 
     // Fallbacks if header names differ slightly
     if (titleIndex === -1) titleIndex = 1;
@@ -71,12 +105,19 @@ function doGet(e) {
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
       if (!row[titleIndex] && !row[amountIndex]) continue;
-      cards.push({
+      var cardObj = {
         columnId: String(row[colIndex] || 'backlog'),
         title: String(row[titleIndex] || ''),
         description: String(row[descIndex] || ''),
         amount: Number(row[amountIndex]) || 0
-      });
+      };
+      if (idIndex !== -1 && row[idIndex]) {
+        cardObj.id = String(row[idIndex]);
+      }
+      if (createdAtIndex !== -1 && row[createdAtIndex]) {
+        cardObj.createdAt = String(row[createdAtIndex]);
+      }
+      cards.push(cardObj);
     }
     
     return createJsonResponse(cards);
@@ -95,11 +136,28 @@ function doPost(e) {
       return createJsonResponse({ status: 'error', message: 'Expected JSON array' });
     }
     
+    var isTransactionSync = (e && e.parameter && (e.parameter.type === 'transactions' || e.parameter.sheet === 'Transactions')) ||
+                            (items.length > 0 && items[0].cardId !== undefined);
+
     var isEnvelopeSync = (e && e.parameter && (e.parameter.type === 'envelopes' || e.parameter.sheet === 'Envelopes')) ||
-                         (items.length > 0 && items[0].cash !== undefined && items[0].title === undefined);
+                         (items.length > 0 && items[0].cash !== undefined && items[0].title === undefined && items[0].cardId === undefined);
 
     sheet.clearContents();
     
+    if (isTransactionSync) {
+      sheet.appendRow(['ID', 'CardID', 'Date', 'Description', 'Amount']);
+      items.forEach(function(txn) {
+        sheet.appendRow([
+          txn.id || '',
+          txn.cardId || '',
+          txn.date || '',
+          txn.description || '',
+          Number(txn.amount) || 0
+        ]);
+      });
+      return createJsonResponse({ status: 'success', count: items.length, type: 'transactions' });
+    }
+
     if (isEnvelopeSync) {
       sheet.appendRow(['Column', 'Cash']);
       items.forEach(function(env) {
@@ -111,14 +169,16 @@ function doPost(e) {
       return createJsonResponse({ status: 'success', count: items.length, type: 'envelopes' });
     }
 
-    sheet.appendRow(['Column', 'Title', 'Description', 'Amount']);
+    sheet.appendRow(['ID', 'Column', 'Title', 'Description', 'Amount', 'CreatedAt']);
     
     items.forEach(function(card) {
       sheet.appendRow([
+        card.id || '',
         card.columnId || 'backlog',
         card.title || '',
         card.description || '',
-        Number(card.amount) || 0
+        Number(card.amount) || 0,
+        card.createdAt || ''
       ]);
     });
     
@@ -127,6 +187,7 @@ function doPost(e) {
     return createJsonResponse({ status: 'error', message: err.toString() });
   }
 }
+
 
 function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))

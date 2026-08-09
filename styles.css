@@ -789,3 +789,238 @@ body {
   transform: translateY(10px);
 }
 
+/* ==========================================================================
+   Issue 9: Drawdown Tracking & Transaction Ledger Styles
+   ========================================================================== */
+
+.card-drawdown-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-top: 0.25rem;
+  border-top: 1px dashed hsla(220, 20%, 80%, 0.08);
+}
+
+.drawdown-spent {
+  color: var(--text-dim);
+}
+
+.drawdown-remaining {
+  font-weight: 600;
+}
+
+.status-normal {
+  color: var(--emerald-accent);
+}
+
+.status-amber {
+  color: var(--amber-accent);
+}
+
+.status-danger {
+  color: var(--rose-accent);
+}
+
+.modal-card-large {
+  max-width: 580px;
+}
+
+.modal-body-scrollable {
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.card-ledger-container {
+  padding: 0 1.5rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card-ledger-container.hidden {
+  display: none;
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border-glass);
+  margin: 0.5rem 0 1rem 0;
+}
+
+.ledger-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+}
+
+.subheading {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.drawdown-progress-container {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.drawdown-metrics-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.drawdown-text-spent {
+  color: var(--text-muted);
+}
+
+.drawdown-text-remaining {
+  color: var(--text-main);
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: hsla(220, 20%, 10%, 0.8);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.progress-normal {
+  background: var(--emerald-gradient);
+}
+
+.progress-amber {
+  background: linear-gradient(135deg, hsl(38, 92%, 50%), hsl(45, 95%, 55%));
+}
+
+.progress-danger {
+  background: linear-gradient(135deg, hsl(350, 90%, 62%), hsl(0, 85%, 50%));
+}
+
+.ledger-history {
+  display: flex;
+  flex-direction: column;
+}
+
+.transaction-list {
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: hsla(222, 20%, 10%, 0.5);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+}
+
+.transaction-list:empty::before {
+  content: 'No transactions logged yet.';
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 0.75rem;
+  display: block;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.tx-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+}
+
+.tx-date {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tx-desc {
+  color: var(--text-main);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tx-amount {
+  font-weight: 700;
+  color: var(--rose-accent);
+  white-space: nowrap;
+}
+
+.btn-delete-tx {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: var(--transition-smooth);
+}
+
+.btn-delete-tx:hover {
+  color: var(--rose-accent);
+  background: hsla(350, 75%, 45%, 0.2);
+}
+
+.quick-add-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1.8fr 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.form-input-sm {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 540px) {
+  .quick-add-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+

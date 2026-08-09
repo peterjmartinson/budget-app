@@ -218,3 +218,111 @@ export async function syncEnvelopesToSheets(webAppUrl, envelopes, fetchFn, envel
     return { success: false, error: err.message || 'Network error' };
   }
 }
+
+/**
+ * Fetches transaction records from Google Apps Script Web App.
+ * @param {string} webAppUrl 
+ * @param {Function} [fetchFn] Optional custom fetch implementation for testing
+ * @param {string} [sheetName] Sheet tab name for transactions (default 'Transactions')
+ * @returns {Promise<{success: boolean, transactions: Array, error?: string}>}
+ */
+export async function fetchTransactionsFromSheets(webAppUrl, fetchFn, sheetName = 'Transactions') {
+  let customFetch = fetchFn;
+  let targetSheetName = sheetName;
+
+  if (typeof fetchFn === 'string') {
+    targetSheetName = fetchFn;
+    customFetch = null;
+  }
+
+  customFetch = customFetch || (typeof fetch !== 'undefined' ? fetch : null);
+
+  if (!webAppUrl || typeof webAppUrl !== 'string' || !webAppUrl.trim()) {
+    return { success: false, error: 'Google Apps Script Web App URL not configured', transactions: [] };
+  }
+
+  if (!customFetch) {
+    return { success: false, error: 'Fetch API not available', transactions: [] };
+  }
+
+  try {
+    let targetUrl = webAppUrl;
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    targetUrl += `${separator}sheet=${encodeURIComponent(targetSheetName.trim())}&type=transactions`;
+
+    const response = await customFetch(targetUrl, {
+      method: 'GET',
+      redirect: 'follow'
+    });
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}: ${response.statusText}`, transactions: [] };
+    }
+
+    const data = await response.json();
+    let transactions = [];
+    if (Array.isArray(data)) {
+      transactions = data;
+    } else if (data && Array.isArray(data.transactions)) {
+      transactions = data.transactions;
+    } else if (data && Array.isArray(data.data)) {
+      transactions = data.data;
+    }
+
+    return { success: true, transactions };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error', transactions: [] };
+  }
+}
+
+/**
+ * Sends transaction records to Google Apps Script Web App via HTTP POST.
+ * @param {string} webAppUrl 
+ * @param {Array} transactions Array of transaction objects
+ * @param {Function|string} [fetchFn] Optional custom fetch implementation for testing (or sheetName string)
+ * @param {string} [sheetName] Sheet tab name for transactions (default 'Transactions')
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function syncTransactionsToSheets(webAppUrl, transactions, fetchFn, sheetName = 'Transactions') {
+  let customFetch = fetchFn;
+  let targetSheetName = sheetName;
+
+  if (typeof fetchFn === 'string') {
+    targetSheetName = fetchFn;
+    customFetch = null;
+  }
+
+  customFetch = customFetch || (typeof fetch !== 'undefined' ? fetch : null);
+
+  if (!webAppUrl || typeof webAppUrl !== 'string' || !webAppUrl.trim()) {
+    return { success: false, error: 'Google Apps Script Web App URL not configured' };
+  }
+
+  if (!customFetch) {
+    return { success: false, error: 'Fetch API not available' };
+  }
+
+  try {
+    let targetUrl = webAppUrl;
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    targetUrl += `${separator}sheet=${encodeURIComponent(targetSheetName.trim())}&type=transactions`;
+
+    const response = await customFetch(targetUrl, {
+      method: 'POST',
+      body: JSON.stringify(transactions || []),
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      redirect: 'follow'
+    });
+
+    if (!response.ok) {
+      return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: err.message || 'Network error' };
+  }
+}
+

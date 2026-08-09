@@ -111,4 +111,40 @@ describe('Sheets Sync Engine', () => {
       expect(result.error).toBe('HTTP 500 Server Error');
     });
   });
+
+  describe('fetchTransactionsFromSheets & syncTransactionsToSheets', () => {
+    it('fetchTransactionsFromSheets queries Transactions sheet tab', async () => {
+      const mockTxns = [{ id: 't1', cardId: 'c1', date: '2026-08-01', description: 'Store', amount: 50 }];
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockTxns
+      });
+
+      const { fetchTransactionsFromSheets } = await import('../js/sheetsSync.js');
+      const result = await fetchTransactionsFromSheets(mockUrl, mockFetch, 'Transactions');
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${mockUrl}?sheet=Transactions&type=transactions`,
+        expect.objectContaining({ method: 'GET' })
+      );
+      expect(result.success).toBe(true);
+      expect(result.transactions).toEqual(mockTxns);
+    });
+
+    it('syncTransactionsToSheets posts transactions to Transactions sheet tab', async () => {
+      const mockTxns = [{ id: 't1', cardId: 'c1', date: '2026-08-01', description: 'Store', amount: 50 }];
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'success' })
+      });
+
+      const { syncTransactionsToSheets } = await import('../js/sheetsSync.js');
+      const result = await syncTransactionsToSheets(mockUrl, mockTxns, mockFetch, 'Transactions');
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${mockUrl}?sheet=Transactions&type=transactions`,
+        expect.objectContaining({ method: 'POST', body: JSON.stringify(mockTxns) })
+      );
+      expect(result.success).toBe(true);
+    });
+  });
 });
+

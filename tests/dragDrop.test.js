@@ -57,10 +57,10 @@ describe('Drag-and-Drop state movement & metric updates', () => {
     let inBudgetCol = container.querySelector('.board-column[data-column-id="in_budget"]');
     let backlogCol = container.querySelector('.board-column[data-column-id="backlog"]');
 
-    expect(inBudgetCol.querySelector('.metric-expenses').textContent).toBe('$1,500');
     expect(inBudgetCol.querySelector('.metric-balance').textContent).toBe('$3,000');
-    expect(backlogCol.querySelector('.metric-expenses').textContent).toBe('$0');
+    expect(inBudgetCol.querySelector('.metric-actual-balance').textContent).toBe('$4,500');
     expect(backlogCol.querySelector('.metric-balance').textContent).toBe('$0');
+    expect(backlogCol.querySelector('.metric-actual-balance').textContent).toBe('$0');
 
     // Move card
     stateStore.moveCard(card.id, 'backlog');
@@ -71,11 +71,12 @@ describe('Drag-and-Drop state movement & metric updates', () => {
     inBudgetCol = container.querySelector('.board-column[data-column-id="in_budget"]');
     backlogCol = container.querySelector('.board-column[data-column-id="backlog"]');
 
-    expect(inBudgetCol.querySelector('.metric-expenses').textContent).toBe('$0');
     expect(inBudgetCol.querySelector('.metric-balance').textContent).toBe('$4,500');
+    expect(inBudgetCol.querySelector('.metric-actual-balance').textContent).toBe('$4,500');
 
-    expect(backlogCol.querySelector('.metric-expenses').textContent).toBe('$1,500');
     expect(backlogCol.querySelector('.metric-balance').textContent).toBe('-$1,500');
+    expect(backlogCol.querySelector('.metric-actual-balance').textContent).toBe('$0');
     expect(backlogCol.querySelector('.metric-balance').classList.contains('negative-balance')).toBe(true);
   });
 });
+

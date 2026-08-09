@@ -1,8 +1,9 @@
 import { loadConfig } from './configLoader.js';
-import { renderBoard } from './boardRenderer.js';
+import { renderBoard, formatCurrency } from './boardRenderer.js';
+import { calculateCardMetrics } from './mathEngine.js';
 import { StateStore } from './stateStore.js';
 import { exportToCSV, parseCSV } from './csvEngine.js';
-import { fetchFromSheets, syncToSheets, fetchEnvelopesFromSheets, syncEnvelopesToSheets } from './sheetsSync.js';
+import { fetchFromSheets, syncToSheets, fetchEnvelopesFromSheets, syncEnvelopesToSheets, fetchTransactionsFromSheets, syncTransactionsToSheets } from './sheetsSync.js';
 
 let appStateConfig = null;
 let stateStore = null;
@@ -31,6 +32,22 @@ function renderApp(container) {
 
 function setupEventListeners(container) {
   container.addEventListener('click', async (event) => {
+    // Delete Transaction Trigger
+    const deleteTxBtn = event.target.closest('.btn-delete-tx');
+    if (deleteTxBtn) {
+      const cardId = deleteTxBtn.dataset.cardId;
+      const txId = deleteTxBtn.dataset.txId;
+      if (cardId && txId) {
+        stateStore.deleteTransaction(cardId, txId);
+        const updatedCard = stateStore.getCards().find(c => c.id === cardId);
+        if (updatedCard) {
+          updateModalLedgerContent(updatedCard);
+        }
+        renderApp(container);
+      }
+      return;
+    }
+
     // Clickable Cash Inline Editing Trigger
     const cashSpan = event.target.closest('.clickable-cash');
     if (cashSpan) {
@@ -195,6 +212,25 @@ function setupEventListeners(container) {
 
       closeModal();
       renderApp(container);
+      return;
+    }
+
+    if (event.target.id === 'add-transaction-form') {
+      event.preventDefault();
+      const cardId = document.getElementById('card-id-input')?.value;
+      const date = document.getElementById('tx-date-input')?.value;
+      const description = document.getElementById('tx-desc-input')?.value;
+      const amount = document.getElementById('tx-amount-input')?.value;
+
+      if (cardId && date && amount) {
+        stateStore.addTransaction(cardId, { date, description, amount });
+        const updatedCard = stateStore.getCards().find(c => c.id === cardId);
+        if (updatedCard) {
+          updateModalLedgerContent(updatedCard);
+        }
+        renderApp(container);
+      }
+      return;
     }
 
     if (event.target.id === 'settings-form') {
@@ -204,6 +240,7 @@ function setupEventListeners(container) {
       closeSettingsModal();
       showToast('Settings saved successfully.', 'info');
       renderApp(container);
+      return;
     }
   });
 }
@@ -260,26 +297,34 @@ async function handleFetchSheets(container) {
 
   const sheetName = appStateConfig?.google_sheets?.sheet_name || appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
   const envelopesSheetName = appStateConfig?.google_sheets?.envelopes_sheet_name || 'Envelopes';
+  const transactionsSheetName = appStateConfig?.google_sheets?.transactions_sheet_name || 'Transactions';
 
-  showToast('Fetching cards and envelopes from Google Sheet...', 'info');
-  const [cardsResult, envResult] = await Promise.all([
+  showToast('Fetching cards, envelopes, and transactions from Google Sheet...', 'info');
+  const [cardsResult, envResult, txResult] = await Promise.all([
     fetchFromSheets(url, null, sheetName),
-    fetchEnvelopesFromSheets(url, null, envelopesSheetName)
+    fetchEnvelopesFromSheets(url, null, envelopesSheetName),
+    fetchTransactionsFromSheets(url, null, transactionsSheetName)
   ]);
 
   if (cardsResult.success) {
-    stateStore.replaceCards(cardsResult.cards);
+    const rawCards = cardsResult.cards;
+    const rawTxns = txResult.success ? txResult.transactions : [];
+    const cardsWithTxns = rawCards.map(c => ({
+      ...c,
+      transactions: rawTxns.filter(t => String(t.cardId) === String(c.id))
+    }));
+    stateStore.replaceCards(cardsWithTxns);
   }
 
   if (envResult.success) {
     stateStore.replaceEnvelopes(envResult.envelopes);
   }
 
-  if (cardsResult.success || envResult.success) {
+  if (cardsResult.success || envResult.success || txResult.success) {
     renderApp(container);
     showToast('Fetched latest data from Google Sheet.', 'success');
   } else {
-    showToast(`Fetch failed: ${cardsResult.error || envResult.error}. Operating offline.`, 'error');
+    showToast(`Fetch failed: ${cardsResult.error || envResult.error || txResult.error}. Operating offline.`, 'error');
   }
 }
 
@@ -293,6 +338,7 @@ async function handleSyncSheets(container) {
 
   const sheetName = appStateConfig?.google_sheets?.sheet_name || appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
   const envelopesSheetName = appStateConfig?.google_sheets?.envelopes_sheet_name || 'Envelopes';
+  const transactionsSheetName = appStateConfig?.google_sheets?.transactions_sheet_name || 'Transactions';
 
   const columns = Array.isArray(appStateConfig?.columns) ? appStateConfig.columns : [];
   const currentEnvelopes = stateStore.getEnvelopes();
@@ -301,18 +347,30 @@ async function handleSyncSheets(container) {
     cash: (currentEnvelopes && currentEnvelopes[col.id] !== undefined) ? currentEnvelopes[col.id] : 0
   }));
 
-  showToast('Syncing cards and envelopes to Google Sheet...', 'info');
-  const [cardsResult, envResult] = await Promise.all([
-    syncToSheets(url, stateStore.getCards(), null, sheetName),
-    syncEnvelopesToSheets(url, envelopesList, null, envelopesSheetName)
+  const cards = stateStore.getCards();
+  const transactionsList = cards.flatMap(c => 
+    (c.transactions || []).map(t => ({
+      id: t.id,
+      cardId: c.id,
+      date: t.date,
+      description: t.description,
+      amount: t.amount
+    }))
+  );
+
+  showToast('Syncing cards, envelopes, and transactions to Google Sheet...', 'info');
+  const [cardsResult, envResult, txResult] = await Promise.all([
+    syncToSheets(url, cards, null, sheetName),
+    syncEnvelopesToSheets(url, envelopesList, null, envelopesSheetName),
+    syncTransactionsToSheets(url, transactionsList, null, transactionsSheetName)
   ]);
 
-  if (cardsResult.success && envResult.success) {
+  if (cardsResult.success && envResult.success && txResult.success) {
     stateStore.markSynced();
     renderApp(container);
-    showToast('Successfully synced cards and envelopes to Google Sheet!', 'success');
+    showToast('Successfully synced cards, envelopes, and transactions to Google Sheet!', 'success');
   } else {
-    showToast(`Sync failed: ${cardsResult.error || envResult.error}. Local state preserved.`, 'error');
+    showToast(`Sync failed: ${cardsResult.error || envResult.error || txResult.error}. Local state preserved.`, 'error');
   }
 }
 
@@ -409,11 +467,12 @@ function openModal(cardData = {}) {
   const amountInput = document.getElementById('card-amount-input');
   const descInput = document.getElementById('card-desc-input');
   const deleteBtn = document.getElementById('modal-delete-btn');
+  const ledgerSection = document.getElementById('card-ledger-section');
 
   if (!modal) return;
 
   if (cardData.id) {
-    modalHeading.textContent = 'Edit Card';
+    modalHeading.textContent = 'Edit Envelope Card';
     cardIdInput.value = cardData.id;
     columnInput.value = cardData.columnId || '';
     titleInput.value = cardData.title || '';
@@ -422,6 +481,11 @@ function openModal(cardData = {}) {
     if (deleteBtn) {
       deleteBtn.classList.remove('hidden');
       deleteBtn.dataset.cardId = cardData.id;
+    }
+
+    if (ledgerSection) {
+      ledgerSection.classList.remove('hidden');
+      updateModalLedgerContent(cardData);
     }
   } else {
     modalHeading.textContent = 'Add Card';
@@ -434,11 +498,76 @@ function openModal(cardData = {}) {
       deleteBtn.classList.add('hidden');
       delete deleteBtn.dataset.cardId;
     }
+    if (ledgerSection) {
+      ledgerSection.classList.add('hidden');
+    }
   }
 
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
   setTimeout(() => titleInput.focus(), 50);
+}
+
+function updateModalLedgerContent(card) {
+  const spentText = document.getElementById('drawdown-spent-text');
+  const remainingText = document.getElementById('drawdown-remaining-text');
+  const progressBar = document.getElementById('drawdown-progress-bar');
+  const ledgerList = document.getElementById('transaction-ledger-list');
+  const dateInput = document.getElementById('tx-date-input');
+  const descInput = document.getElementById('tx-desc-input');
+  const amountInput = document.getElementById('tx-amount-input');
+
+  const cardMetrics = calculateCardMetrics(card);
+  const formattedSpent = formatCurrency(cardMetrics.spent);
+  const formattedBudget = formatCurrency(cardMetrics.budgeted);
+  const formattedRemaining = formatCurrency(cardMetrics.remaining);
+
+  if (spentText) spentText.textContent = `Spent: ${formattedSpent} / ${formattedBudget}`;
+  if (remainingText) remainingText.textContent = `Remaining: ${formattedRemaining}`;
+
+  if (progressBar) {
+    const widthPct = Math.min(100, Math.max(0, cardMetrics.percentSpent));
+    progressBar.style.width = `${widthPct}%`;
+    progressBar.className = `progress-bar-fill progress-${cardMetrics.status}`;
+  }
+
+  if (ledgerList) {
+    const transactions = Array.isArray(card.transactions) ? card.transactions : [];
+    if (transactions.length === 0) {
+      ledgerList.innerHTML = '';
+    } else {
+      ledgerList.innerHTML = transactions.map(t => `
+        <div class="transaction-item" data-tx-id="${escapeHtml(t.id)}">
+          <div class="tx-info">
+            <span class="tx-date">${escapeHtml(t.date || '')}</span>
+            <span class="tx-desc">${escapeHtml(t.description || 'No description')}</span>
+          </div>
+          <div class="tx-actions">
+            <span class="tx-amount">-${formatCurrency(t.amount)}</span>
+            <button type="button" class="btn-delete-tx" data-card-id="${escapeHtml(card.id)}" data-tx-id="${escapeHtml(t.id)}" title="Delete transaction">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  if (dateInput) {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+  if (descInput) descInput.value = '';
+  if (amountInput) amountInput.value = '';
+}
+
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function closeModal() {
@@ -470,3 +599,4 @@ function closeSettingsModal() {
     modal.setAttribute('aria-hidden', 'true');
   }
 }
+

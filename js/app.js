@@ -1,9 +1,10 @@
 import { loadConfig } from './configLoader.js';
-import { renderBoard, formatCurrency } from './boardRenderer.js';
+import { renderBoard, formatCurrency, getAdjacentMonth } from './boardRenderer.js';
 import { calculateCardMetrics } from './mathEngine.js';
 import { StateStore } from './stateStore.js';
 import { exportToCSV, parseCSV } from './csvEngine.js';
-import { fetchFromSheets, syncToSheets, fetchEnvelopesFromSheets, syncEnvelopesToSheets, fetchTransactionsFromSheets, syncTransactionsToSheets } from './sheetsSync.js';
+import { fetchFromSheets, syncToSheets, fetchEnvelopesFromSheets, syncEnvelopesToSheets, fetchTransactionsFromSheets, syncTransactionsToSheets, getSheetNamesForMonth } from './sheetsSync.js';
+
 
 let appStateConfig = null;
 let stateStore = null;
@@ -119,6 +120,47 @@ function setupEventListeners(container) {
       return;
     }
 
+    // Month Navigation Triggers
+    const prevMonthBtn = event.target.closest('#btn-prev-month');
+    if (prevMonthBtn) {
+      const currentMonth = stateStore.getCurrentMonth();
+      const prevMonth = getAdjacentMonth(currentMonth, -1);
+      stateStore.addMonth(prevMonth);
+      stateStore.setCurrentMonth(prevMonth);
+      renderApp(container);
+      return;
+    }
+
+    const nextMonthBtn = event.target.closest('#btn-next-month');
+    if (nextMonthBtn) {
+      const currentMonth = stateStore.getCurrentMonth();
+      const nextMonth = getAdjacentMonth(currentMonth, 1);
+      stateStore.addMonth(nextMonth);
+      stateStore.setCurrentMonth(nextMonth);
+      renderApp(container);
+      return;
+    }
+
+    const addMonthBtn = event.target.closest('#btn-add-month');
+    if (addMonthBtn) {
+      const currentMonth = stateStore.getCurrentMonth();
+      const defaultNext = getAdjacentMonth(currentMonth, 1);
+      const inputMonth = (typeof window !== 'undefined' && window.prompt)
+        ? window.prompt('Enter month (YYYY-MM):', defaultNext)
+        : defaultNext;
+
+      if (inputMonth && /^\d{4}-\d{2}$/.test(inputMonth.trim())) {
+        const cleanMonth = inputMonth.trim();
+        stateStore.addMonth(cleanMonth);
+        stateStore.setCurrentMonth(cleanMonth);
+        renderApp(container);
+        showToast(`Switched to month ${cleanMonth}`, 'info');
+      } else if (inputMonth) {
+        showToast('Invalid month format. Please use YYYY-MM (e.g. 2026-09).', 'warning');
+      }
+      return;
+    }
+
     // Export CSV Trigger
     const exportBtn = event.target.closest('#btn-export-csv');
     if (exportBtn) {
@@ -140,6 +182,7 @@ function setupEventListeners(container) {
       await handleFetchSheets(container);
       return;
     }
+
 
     // Sync Sheets Trigger
     const syncBtn = event.target.closest('#btn-sync-sheets');
@@ -177,8 +220,17 @@ function setupEventListeners(container) {
     }
   });
 
-  // Change Event for File Input & Column Sort Select
+  // Change Event for File Input, Month Select & Column Sort Select
   container.addEventListener('change', (event) => {
+    if (event.target.id === 'month-select') {
+      const selectedMonth = event.target.value;
+      if (selectedMonth && stateStore) {
+        stateStore.setCurrentMonth(selectedMonth);
+        renderApp(container);
+      }
+      return;
+    }
+
     if (event.target.classList.contains('column-sort-select')) {
       const columnId = event.target.dataset.columnId;
       const sortOption = event.target.value;
@@ -246,6 +298,7 @@ function setupEventListeners(container) {
 }
 
 function handleExportCSV() {
+  const currentMonth = stateStore.getCurrentMonth();
   const cards = stateStore.getCards();
   const csvContent = exportToCSV(cards);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -253,13 +306,13 @@ function handleExportCSV() {
 
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `budget_board_export_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `budget_board_${currentMonth}_export_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 
-  showToast('CSV exported successfully!', 'success');
+  showToast(`CSV for ${currentMonth} exported successfully!`, 'success');
 }
 
 function handleImportCSVFile(file, container) {
@@ -278,7 +331,7 @@ function handleImportCSVFile(file, container) {
 
       stateStore.replaceCards(parsedCards);
       renderApp(container);
-      showToast(`Imported ${parsedCards.length} cards from CSV.`, 'success');
+      showToast(`Imported ${parsedCards.length} cards from CSV into ${stateStore.getCurrentMonth()}.`, 'success');
     } catch (err) {
       console.error('CSV parse error:', err);
       showToast('Failed to parse CSV file: ' + err.message, 'error');
@@ -295,15 +348,14 @@ async function handleFetchSheets(container) {
     return;
   }
 
-  const sheetName = appStateConfig?.google_sheets?.sheet_name || appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
-  const envelopesSheetName = appStateConfig?.google_sheets?.envelopes_sheet_name || 'Envelopes';
-  const transactionsSheetName = appStateConfig?.google_sheets?.transactions_sheet_name || 'Transactions';
+  const currentMonth = stateStore.getCurrentMonth();
+  const { cardsSheet, envelopesSheet, transactionsSheet } = getSheetNamesForMonth(currentMonth);
 
-  showToast('Fetching cards, envelopes, and transactions from Google Sheet...', 'info');
+  showToast(`Fetching ${currentMonth} cards, envelopes, and transactions from Google Sheet...`, 'info');
   const [cardsResult, envResult, txResult] = await Promise.all([
-    fetchFromSheets(url, null, sheetName),
-    fetchEnvelopesFromSheets(url, null, envelopesSheetName),
-    fetchTransactionsFromSheets(url, null, transactionsSheetName)
+    fetchFromSheets(url, null, cardsSheet),
+    fetchEnvelopesFromSheets(url, null, envelopesSheet),
+    fetchTransactionsFromSheets(url, null, transactionsSheet)
   ]);
 
   if (cardsResult.success) {
@@ -322,7 +374,7 @@ async function handleFetchSheets(container) {
 
   if (cardsResult.success || envResult.success || txResult.success) {
     renderApp(container);
-    showToast('Fetched latest data from Google Sheet.', 'success');
+    showToast(`Fetched latest data for ${currentMonth} from Google Sheet.`, 'success');
   } else {
     showToast(`Fetch failed: ${cardsResult.error || envResult.error || txResult.error}. Operating offline.`, 'error');
   }
@@ -336,9 +388,8 @@ async function handleSyncSheets(container) {
     return;
   }
 
-  const sheetName = appStateConfig?.google_sheets?.sheet_name || appStateConfig?.board?.sheet_name || appStateConfig?.sheet_name;
-  const envelopesSheetName = appStateConfig?.google_sheets?.envelopes_sheet_name || 'Envelopes';
-  const transactionsSheetName = appStateConfig?.google_sheets?.transactions_sheet_name || 'Transactions';
+  const currentMonth = stateStore.getCurrentMonth();
+  const { cardsSheet, envelopesSheet, transactionsSheet } = getSheetNamesForMonth(currentMonth);
 
   const columns = Array.isArray(appStateConfig?.columns) ? appStateConfig.columns : [];
   const currentEnvelopes = stateStore.getEnvelopes();
@@ -358,17 +409,17 @@ async function handleSyncSheets(container) {
     }))
   );
 
-  showToast('Syncing cards, envelopes, and transactions to Google Sheet...', 'info');
+  showToast(`Syncing cards, envelopes, and transactions for ${currentMonth} to Google Sheet...`, 'info');
   const [cardsResult, envResult, txResult] = await Promise.all([
-    syncToSheets(url, cards, null, sheetName),
-    syncEnvelopesToSheets(url, envelopesList, null, envelopesSheetName),
-    syncTransactionsToSheets(url, transactionsList, null, transactionsSheetName)
+    syncToSheets(url, cards, null, cardsSheet),
+    syncEnvelopesToSheets(url, envelopesList, null, envelopesSheet),
+    syncTransactionsToSheets(url, transactionsList, null, transactionsSheet)
   ]);
 
   if (cardsResult.success && envResult.success && txResult.success) {
     stateStore.markSynced();
     renderApp(container);
-    showToast('Successfully synced cards, envelopes, and transactions to Google Sheet!', 'success');
+    showToast(`Successfully synced ${currentMonth} to Google Sheet!`, 'success');
   } else {
     showToast(`Sync failed: ${cardsResult.error || envResult.error || txResult.error}. Local state preserved.`, 'error');
   }

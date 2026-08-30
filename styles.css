@@ -655,8 +655,62 @@ body {
 }
 
 /* ==========================================================================
-   Header Sync & Integration Controls (Issue 4)
+   Header Sync & Integration Controls (Issue 4 & Issue 10)
    ========================================================================== */
+
+.month-navigator {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: hsla(222, 20%, 16%, 0.7);
+  border: 1px solid var(--border-glass);
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.month-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.month-select {
+  background: transparent;
+  color: var(--text-main);
+  border: none;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.month-select option {
+  background: hsl(222, 25%, 12%);
+  color: var(--text-main);
+  font-size: 0.88rem;
+}
+
+.btn-icon-sm {
+  padding: 0.35rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-smooth);
+}
+
+.btn-icon-sm:hover {
+  background: hsla(220, 20%, 30%, 0.6);
+  color: #ffffff;
+  border-color: var(--border-glass);
+}
 
 .header-actions {
   display: flex;

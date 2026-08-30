@@ -20,10 +20,20 @@ export function generateUUID() {
   return 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
 }
 
+export function getDefaultMonth() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
 export class StateStore {
-  constructor(storageKey = STORAGE_KEY, urlKey = SHEETS_URL_KEY) {
+  constructor(storageKey = STORAGE_KEY, urlKey = SHEETS_URL_KEY, initialMonth = null) {
     this.storageKey = storageKey;
     this.urlKey = urlKey;
+    this.initialMonthProvided = Boolean(initialMonth);
+    this.currentMonth = initialMonth || getDefaultMonth();
+    this.months = {};
     this.cards = [];
     this.envelopes = {};
     this.columnSorts = {};
@@ -31,42 +41,114 @@ export class StateStore {
     this.loadState();
   }
 
+  ensureMonth(monthKey) {
+    if (!monthKey) return;
+    if (!this.months[monthKey] || typeof this.months[monthKey] !== 'object') {
+      this.months[monthKey] = {
+        cards: [],
+        envelopes: {},
+        columnSorts: {}
+      };
+    }
+  }
+
+  _loadActiveMonthData() {
+    this.ensureMonth(this.currentMonth);
+    const active = this.months[this.currentMonth];
+    this.cards = (Array.isArray(active.cards) ? active.cards : []).map(c => ({
+      ...c,
+      transactions: Array.isArray(c.transactions) ? c.transactions : []
+    }));
+    this.envelopes = (active.envelopes && typeof active.envelopes === 'object') ? { ...active.envelopes } : {};
+    this.columnSorts = (active.columnSorts && typeof active.columnSorts === 'object') ? { ...active.columnSorts } : {};
+  }
+
+  _syncActiveMonthDataToStore() {
+    this.ensureMonth(this.currentMonth);
+    this.months[this.currentMonth] = {
+      cards: this.cards,
+      envelopes: this.envelopes,
+      columnSorts: this.columnSorts
+    };
+  }
+
+  getCurrentMonth() {
+    return this.currentMonth;
+  }
+
+  setCurrentMonth(monthKey) {
+    if (!monthKey || typeof monthKey !== 'string') return;
+    const cleanKey = monthKey.trim();
+    this._syncActiveMonthDataToStore();
+    this.currentMonth = cleanKey;
+    this.ensureMonth(cleanKey);
+    this._loadActiveMonthData();
+    this.hasUnsavedChanges = false;
+    this.saveState();
+  }
+
+  getAvailableMonths() {
+    const keys = Object.keys(this.months);
+    if (!keys.includes(this.currentMonth)) {
+      keys.push(this.currentMonth);
+    }
+    return keys.sort();
+  }
+
+  addMonth(monthKey) {
+    if (!monthKey || typeof monthKey !== 'string') return;
+    const cleanKey = monthKey.trim();
+    this.ensureMonth(cleanKey);
+    this.saveState();
+    return cleanKey;
+  }
+
   loadState() {
     try {
       if (typeof localStorage === 'undefined') {
-        this.cards = [];
-        this.envelopes = {};
-        this.columnSorts = {};
+        this.months = { [this.currentMonth]: { cards: [], envelopes: {}, columnSorts: {} } };
+        this._loadActiveMonthData();
         return this.cards;
       }
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          this.cards = parsed;
-          this.envelopes = {};
-          this.columnSorts = {};
+        if (parsed && typeof parsed === 'object' && parsed.months && typeof parsed.months === 'object') {
+          this.months = parsed.months;
+          if (parsed.currentMonth && !this.initialMonthProvided) {
+            this.currentMonth = parsed.currentMonth;
+          }
+        } else if (Array.isArray(parsed)) {
+          // Legacy cards array
+          this.months = {
+            [this.currentMonth]: {
+              cards: parsed,
+              envelopes: {},
+              columnSorts: {}
+            }
+          };
         } else if (parsed && typeof parsed === 'object') {
-          this.cards = Array.isArray(parsed.cards) ? parsed.cards : [];
-          this.envelopes = (parsed.envelopes && typeof parsed.envelopes === 'object') ? parsed.envelopes : {};
-          this.columnSorts = (parsed.columnSorts && typeof parsed.columnSorts === 'object') ? parsed.columnSorts : {};
+          // Legacy state object { cards, envelopes, columnSorts }
+          this.months = {
+            [this.currentMonth]: {
+              cards: Array.isArray(parsed.cards) ? parsed.cards : [],
+              envelopes: (parsed.envelopes && typeof parsed.envelopes === 'object') ? parsed.envelopes : {},
+              columnSorts: (parsed.columnSorts && typeof parsed.columnSorts === 'object') ? parsed.columnSorts : {}
+            }
+          };
         } else {
-          this.cards = [];
-          this.envelopes = {};
-          this.columnSorts = {};
+          this.months = { [this.currentMonth]: { cards: [], envelopes: {}, columnSorts: {} } };
         }
       } else {
-        this.cards = [];
-        this.envelopes = {};
-        this.columnSorts = {};
+        this.months = { [this.currentMonth]: { cards: [], envelopes: {}, columnSorts: {} } };
       }
 
-      this.cards = this.cards.map(c => ({
-        ...c,
-        transactions: Array.isArray(c.transactions) ? c.transactions : []
-      }));
+      this.ensureMonth(this.currentMonth);
+      this._loadActiveMonthData();
+      this.saveState();
     } catch (err) {
       console.warn('Failed to load state from localStorage:', err);
+      this.months = { [this.currentMonth]: { cards: [], envelopes: {}, columnSorts: {} } };
       this.cards = [];
       this.envelopes = {};
       this.columnSorts = {};
@@ -77,16 +159,17 @@ export class StateStore {
   saveState() {
     try {
       if (typeof localStorage !== 'undefined') {
+        this._syncActiveMonthDataToStore();
         localStorage.setItem(this.storageKey, JSON.stringify({
-          cards: this.cards,
-          envelopes: this.envelopes,
-          columnSorts: this.columnSorts
+          currentMonth: this.currentMonth,
+          months: this.months
         }));
       }
     } catch (err) {
       console.error('Failed to save state to localStorage:', err);
     }
   }
+
 
   getColumnSort(columnId) {
     if (!columnId) return 'amount-desc';

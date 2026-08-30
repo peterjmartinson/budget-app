@@ -1,6 +1,24 @@
 /**
- * Client module for communicating with Google Apps Script Web App for board sync.
+ * Helper to generate dynamic Google Sheets tab names for a specific month.
+ * @param {string} monthKey Format YYYY-MM (e.g. '2026-08')
+ * @returns {{ cardsSheet: string, envelopesSheet: string, transactionsSheet: string }}
  */
+export function getSheetNamesForMonth(monthKey) {
+  if (!monthKey || typeof monthKey !== 'string' || !monthKey.trim()) {
+    return {
+      cardsSheet: 'Cards',
+      envelopesSheet: 'Envelopes',
+      transactionsSheet: 'Transactions'
+    };
+  }
+  const cleanKey = monthKey.trim();
+  return {
+    cardsSheet: `${cleanKey} Cards`,
+    envelopesSheet: `${cleanKey} Envelopes`,
+    transactionsSheet: `${cleanKey} Transactions`
+  };
+}
+
 
 /**
  * Fetches card data from Google Apps Script Web App.

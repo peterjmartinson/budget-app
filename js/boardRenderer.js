@@ -13,6 +13,36 @@ export function formatCurrency(amount) {
   return isNegative ? `-${formatted}` : formatted;
 }
 
+export function formatMonthLabel(monthKey) {
+  if (!monthKey || typeof monthKey !== 'string') return '';
+  const parts = monthKey.split('-');
+  if (parts.length !== 2) return monthKey;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  if (isNaN(year) || isNaN(month) || month < 1 || month > 12) return monthKey;
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+export function getAdjacentMonth(monthKey, step = 1) {
+  if (!monthKey || typeof monthKey !== 'string') return monthKey;
+  const [yStr, mStr] = monthKey.split('-');
+  let year = parseInt(yStr, 10);
+  let month = parseInt(mStr, 10);
+  if (isNaN(year) || isNaN(month)) return monthKey;
+  
+  month += step;
+  while (month > 12) {
+    month -= 12;
+    year += 1;
+  }
+  while (month < 1) {
+    month += 12;
+    year -= 1;
+  }
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
 export function renderBoard(state, containerElement, cards = [], store = null) {
   if (!containerElement) return;
 
@@ -22,6 +52,12 @@ export function renderBoard(state, containerElement, cards = [], store = null) {
   const sheetsUrl = store ? store.getSheetsUrl() : '';
 
   const envelopes = (store && typeof store.getEnvelopes === 'function') ? store.getEnvelopes() : {};
+  const currentMonth = (store && typeof store.getCurrentMonth === 'function') ? store.getCurrentMonth() : '2026-08';
+  const availableMonths = (store && typeof store.getAvailableMonths === 'function') ? store.getAvailableMonths() : [currentMonth];
+
+  const monthOptionsHtml = availableMonths.map(m => `
+    <option value="${m}" ${m === currentMonth ? 'selected' : ''}>${escapeHtml(formatMonthLabel(m))} (${m})</option>
+  `).join('');
 
   containerElement.innerHTML = `
     <header class="board-header">
@@ -34,10 +70,28 @@ export function renderBoard(state, containerElement, cards = [], store = null) {
               <line x1="12" y1="17" x2="12" y2="21"></line>
             </svg>
           </div>
-          <h1 class="board-title">${escapeHtml(boardTitle)}</h1>
+          <div class="header-titles">
+            <h1 class="board-title">${escapeHtml(boardTitle)}</h1>
+          </div>
+        </div>
+
+        <div class="month-navigator" id="month-navigator">
+          <button id="btn-prev-month" class="btn btn-secondary btn-icon-sm" title="Previous Month">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div class="month-select-wrapper">
+            <select id="month-select" class="month-select" title="Select Month">
+              ${monthOptionsHtml}
+            </select>
+          </div>
+          <button id="btn-next-month" class="btn btn-secondary btn-icon-sm" title="Next Month">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+          <button id="btn-add-month" class="btn btn-secondary btn-sm" title="Add a new month">+ Month</button>
         </div>
 
         <div class="header-actions">
+
           <button id="btn-fetch-sheets" class="btn btn-secondary btn-sm" title="Fetch state from Google Sheet">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             Fetch Sheet
